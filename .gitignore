@@ -26,3 +26,6 @@ go.work.sum
 
 # Go land idea
 .idea
+
+# go-fuzz build artifacts.
+*-fuzz.zip
