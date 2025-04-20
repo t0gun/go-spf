@@ -1,3 +1,7 @@
+// Package spf implements the Sender Policy Framework checker defined in
+// RFC 7208.  The entry‑point is CheckHost, which follows the decision tree in
+// section 4.6.
+
 package spf
 
 import (
@@ -8,78 +12,31 @@ import (
 	"strings"
 )
 
-// Result defines the outcome of an SPF check.
-// https://tools.ietf.org/html/rfc7208#section-8
+// Result is the outcome of an SPF evaluation (RFC 7208 §8).
 type Result string
 
 const (
-	// None result means the check host completed without errors and not able to reach any conclusion.
-	// https://tools.ietf.org/html/rfc7208#section-8.1
-	None = Result("none")
-
-	// Neutral indicates there is an SPF policy but no definitive assertation (positive or negative)
-	// https://tools.ietf.org/html/rfc7208#section-8.2
-	Neutral = Result("neutral")
-
-	// Pass indicates the client is authorized to inject mail
-	// https://tools.ietf.org/html/rfc7208#section-8.3
-	Pass = Result("pass")
-
-	// Fail indicates the client is not authorized to use the domain
-	// https://tools.ietf.org/html/rfc7208#section-8.4
-	Fail = Result("fail")
-
-	// SoftFail indicates the client is not authorized but willing to make a strong policy statement
-	// https://tools.ietf.org/html/rfc7208#section-8.5
-	SoftFail = Result("softfail")
-
-	// TempError indicates a DNS error occurred while performing the check
-	// https://tools.ietf.org/html/rfc7208#section-8.6
-	TempError = Result("temperror")
-
-	// PermError indicates the domain published records could not be interpreted
-	// https://tools.ietf.org/html/rfc7208#section-8.7
-	PermError = Result("permerror")
+	None      Result = "none"      // no SPF record
+	Neutral   Result = "neutral"   // policy exists but gives no assertion
+	Pass      Result = "pass"      // client is authorized
+	Fail      Result = "fail"      // client is NOT authorized
+	SoftFail  Result = "softfail"  // not authorized, but weak assertion
+	TempError Result = "temperror" // transient DNS error
+	PermError Result = "permerror" // perm error in record or >10 look‑ups
 )
 
+// DNS‑level errors surfaced by the Resolver.
 var (
-	// Errors related to DNS lookups
-
-	// ErrMultipleRecords indicates that multiple DNS records of the same type were
-	// found when only one was expected.
-	ErrMultipleRecords = errors.New("duplicate DNS records")
-
-	ErrNoRecordFound = errors.New("the specified record cant be found")
-
-	ErrLookupLimitReached = errors.New("lookup limit reached")
+	ErrMultipleRecords    = errors.New("multiple txt records") // RFC 7208 §4.5
+	ErrRecordNotFound     = errors.New("no  record found")     // RFC 7208 §8.1
+	ErrLookupLimitReached = errors.New("DNS lookup limit exceeded")
 )
 
+// Limits from RFC 7208 §4.6.4.
 const (
-	// MaxDNSLookups defines the maximum number of DNS-query-causing mechanism/modifiers.Exceeding this limit
-	// results in a PermError
-	// Reference: RFC 7208 Section 4.6.4
-	// https://tools.ietf.org/html/rfc7208#section-4.6.4
-	MaxDNSLookups = 10
-
-	// MaxVoidLookups defines the maximum number of "void": DNS lookups.
-	// lookups that return no usable records allowed during SPF evaluation
-	// Exceeding this limit result in a PermError
-	// Reference: RFC 7208 Section 4.6.4
-	// https://tools.ietf.org/html/rfc7208#section-4.6.4
-	MaxVoidLookups = 2
+	MaxDNSLookups  = 10 // any mechanism that triggers DNS counts
+	MaxVoidLookups = 2  // DNS look‑ups returning no usable data
 )
-
-var (
-// Errors related to SPF lookup
-)
-
-func ParseSPF(txt string) ([]string, error) {
-	if !strings.HasPrefix(strings.ToLower(txt), "v=spf1") {
-		return nil, fmt.Errorf("invalid SPF record")
-	}
-
-	return strings.Fields(txt)[1:], nil
-}
 
 type TXTResolver interface {
 	LookupTXT(ctx context.Context, domain string) ([]string, error)
@@ -97,4 +54,50 @@ func NewDNSResolver() *DNSResolver {
 	return &DNSResolver{
 		resolver: net.DefaultResolver,
 	}
+}
+
+// ParseSPF : basic parser
+func ParseSPF(txt string) ([]string, error) {
+	if !strings.HasPrefix(strings.ToLower(txt), "v=spf1") {
+		return nil, fmt.Errorf("invalid SPF record")
+	}
+
+	return strings.Fields(txt)[1:], nil
+}
+
+type Checker struct {
+	Resolver       TXTResolver
+	MaxLookups     int
+	MaxVoidLookups int
+	// Extensible
+}
+
+func NewChecker(r TXTResolver) *Checker {
+	return &Checker{
+		Resolver:       r,
+		MaxLookups:     MaxDNSLookups,
+		MaxVoidLookups: MaxVoidLookups,
+	}
+
+}
+
+func (c *Checker) CheckHost(ctx context.Context, ip, domain, sender string) (Result, error) {
+
+	// ctx is used for every DNS call, deadline/cancel belong to the caller
+	_, err := c.Resolver.LookupTXT(ctx, domain)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+			return TempError, err
+		}
+		return TempError, err
+	}
+
+	return TempError, nil
+}
+
+// Convenience wrapper.
+var defaultChecker = NewChecker(NewDNSResolver())
+
+func CheckHost(ip, domain, sender string) (Result, error) {
+	return defaultChecker.CheckHost(context.Background(), ip, domain, sender)
 }

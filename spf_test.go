@@ -25,8 +25,7 @@ func TestParseSPF(t *testing.T) {
 		got, err := ParseSPF(c.txt)
 		if c.ok {
 			assert.Equal(c.want, got)
-		}
-		if !c.ok {
+		} else {
 			require.Error(err)
 		}
 

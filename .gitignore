@@ -30,3 +30,6 @@ go.work.sum
 
 # go-fuzz build artifacts.
 *-fuzz.zip
+
+# Coverage results
+coverage.out
