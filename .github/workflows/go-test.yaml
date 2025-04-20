@@ -9,7 +9,7 @@ on:
       - main
 
   schedule:
-    - cron: ''   # we leave for now
+  - cron: '30 5,17 * * 1'
 
 
 jobs:
