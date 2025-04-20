@@ -6,7 +6,6 @@ package spf
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -25,45 +24,11 @@ const (
 	PermError Result = "permerror" // perm error in record or >10 look‑ups
 )
 
-// DNS‑level errors surfaced by the Resolver.
-var (
-	ErrMultipleRecords    = errors.New("multiple txt records") // RFC 7208 §4.5
-	ErrRecordNotFound     = errors.New("no  record found")     // RFC 7208 §8.1
-	ErrLookupLimitReached = errors.New("DNS lookup limit exceeded")
-)
-
 // Limits from RFC 7208 §4.6.4.
 const (
 	MaxDNSLookups  = 10 // any mechanism that triggers DNS counts
 	MaxVoidLookups = 2  // DNS look‑ups returning no usable data
 )
-
-type TXTResolver interface {
-	LookupTXT(ctx context.Context, domain string) ([]string, error)
-}
-
-type DNSResolver struct {
-	resolver *net.Resolver
-}
-
-func (d *DNSResolver) LookupTXT(ctx context.Context, domain string) ([]string, error) {
-	return d.resolver.LookupTXT(ctx, domain)
-}
-
-func NewDNSResolver() *DNSResolver {
-	return &DNSResolver{
-		resolver: net.DefaultResolver,
-	}
-}
-
-// ParseSPF : basic parser
-func ParseSPF(txt string) ([]string, error) {
-	if !strings.HasPrefix(strings.ToLower(txt), "v=spf1") {
-		return nil, fmt.Errorf("invalid SPF record")
-	}
-
-	return strings.Fields(txt)[1:], nil
-}
 
 type Checker struct {
 	Resolver       TXTResolver
@@ -81,23 +46,57 @@ func NewChecker(r TXTResolver) *Checker {
 
 }
 
-func (c *Checker) CheckHost(ctx context.Context, ip, domain, sender string) (Result, error) {
+// CheckHost implements RFC 7208 §4.6 (the “check_host” function)
+// domain – Domain whose SPF record we start with. Usually:
+//   - the HELO/EHLO hostname, if you’re doing an initial HELO check;
+//   - otherwise the domain part of MAIL FROM.
+//
+// sender – The full MAIL FROM address (<> for bounces). Used only for
+//
+//	macro expansion; leave empty if you’re just checking HELO.
+func (c *Checker) CheckHost(ctx context.Context, ip net.IP, domain, sender string) (Result, error) {
 
-	// ctx is used for every DNS call, deadline/cancel belong to the caller
-	_, err := c.Resolver.LookupTXT(ctx, domain)
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-			return TempError, err
-		}
-		return TempError, err
-	}
-
-	return TempError, nil
+	// if we reached the end without any match, RFC says neutral
+	return Neutral, nil
 }
 
-// Convenience wrapper.
+// Convenience wrapper for minimal api
 var defaultChecker = NewChecker(NewDNSResolver())
 
-func CheckHost(ip, domain, sender string) (Result, error) {
+// CheckHost - function here is a package level checker. it's wrapped around the original API
+// Mostly for callers, not interested in customization.
+func CheckHost(ip net.IP, domain, sender string) (Result, error) {
 	return defaultChecker.CheckHost(context.Background(), ip, domain, sender)
+}
+
+//////////////////////////////////// HELPERS  ////////////////////////////////////////
+
+// filterSPF returns only the TXT entries that are valid SPF1 records (RFC 7208 § 3.1).
+func filterSPF(txts []string) []string {
+	var SPFs []string
+	for _, txt := range txts {
+		spf := strings.TrimSpace(txt)
+		if strings.HasPrefix(strings.ToLower(spf), "v=spf1") {
+			SPFs = append(SPFs, spf)
+		}
+	}
+	return SPFs
+}
+
+// parseSPF : basic parser
+func parseSPF(txt string) ([]string, error) {
+	if !strings.HasPrefix(strings.ToLower(txt), "v=spf1") {
+		return nil, fmt.Errorf("invalid SPF record")
+	}
+	return strings.Fields(txt)[1:], nil
+}
+
+// getSenderDomain returns everything after the first "@". (RFC 7208 § 4.1)
+// If there's no "@", it returns the empty string.
+func getSenderDomain(sender string) (string, bool) {
+	parts := strings.SplitN(sender, "@", 2)
+	if len(parts) == 2 {
+		return parts[1], true
+	}
+	return "", false
 }

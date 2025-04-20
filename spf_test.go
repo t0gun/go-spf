@@ -22,12 +22,42 @@ func TestParseSPF(t *testing.T) {
 	}
 
 	for _, c := range tc {
-		got, err := ParseSPF(c.txt)
+		got, err := parseSPF(c.txt)
 		if c.ok {
 			assert.Equal(c.want, got)
 		} else {
 			require.Error(err)
 		}
 
+	}
+}
+
+func TestFilterSPF(t *testing.T) {
+	tc := []struct {
+		txts []string
+		want []string
+	}{
+		{[]string{"v=spf1 -all", "v=spf2 a -all", " v=spf1 a ~all "}, []string{"v=spf1 -all", "v=spf1 a ~all"}},
+	}
+
+	for _, c := range tc {
+		got := filterSPF(c.txts)
+		assert.Equal(t, c.want, got)
+	}
+}
+
+func TestGetSenderDomain(t *testing.T) {
+	tc := []struct {
+		sender string
+		domain string
+	}{
+		{"apps@gmail.com", "gmail.com"},
+		{"apps@yahoo.com", "yahoo.com"},
+	}
+
+	for _, c := range tc {
+		got, ok := getSenderDomain(c.sender)
+		assert.Equal(t, c.domain, got)
+		assert.True(t, ok)
 	}
 }
