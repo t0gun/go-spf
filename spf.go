@@ -91,8 +91,9 @@ func parseSPF(txt string) ([]string, error) {
 	return strings.Fields(txt)[1:], nil
 }
 
-// getSenderDomain returns everything after the first "@". (RFC 7208 § 4.1)
-// If there's no "@", it returns the empty string.
+// getSenderDomain extracts the domain part of a MAIL FROM address per RFC 7208 § 4.1.
+// It returns the portion after the first '@', and ok==true if an '@' was present.
+// If sender contains no '@', it returns ("", false).
 func getSenderDomain(sender string) (string, bool) {
 	parts := strings.SplitN(sender, "@", 2)
 	if len(parts) == 2 {
