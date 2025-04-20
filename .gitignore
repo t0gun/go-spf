@@ -26,6 +26,7 @@ go.work.sum
 
 # Go land idea
 .idea
+.DS_Store
 
 # go-fuzz build artifacts.
 *-fuzz.zip
