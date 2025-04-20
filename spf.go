@@ -69,7 +69,7 @@ func CheckHost(ip net.IP, domain, sender string) (Result, error) {
 	return defaultChecker.CheckHost(context.Background(), ip, domain, sender)
 }
 
-//////////////////////////////////// HELPERS  ////////////////////////////////////////
+///////////////////////////////////////////////////// HELPERS  ///////////////////////////////////////////////////////
 
 // filterSPF returns only the TXT entries that are valid SPF1 records (RFC 7208 § 3.1).
 func filterSPF(txts []string) []string {
