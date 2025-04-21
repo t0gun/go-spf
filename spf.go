@@ -71,18 +71,6 @@ func CheckHost(ip net.IP, domain, sender string) (Result, error) {
 
 ///////////////////////////////////////////////////// HELPERS  ///////////////////////////////////////////////////////
 
-// filterSPF returns only the TXT entries that are valid SPF1 records (RFC 7208 § 3.1).
-func filterSPF(txts []string) []string {
-	var SPFs []string
-	for _, txt := range txts {
-		spf := strings.TrimSpace(txt)
-		if strings.HasPrefix(strings.ToLower(spf), "v=spf1") {
-			SPFs = append(SPFs, spf)
-		}
-	}
-	return SPFs
-}
-
 // parseSPF : basic parser
 func parseSPF(txt string) ([]string, error) {
 	if !strings.HasPrefix(strings.ToLower(txt), "v=spf1") {

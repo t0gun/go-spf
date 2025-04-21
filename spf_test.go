@@ -32,20 +32,6 @@ func TestParseSPF(t *testing.T) {
 	}
 }
 
-func TestFilterSPF(t *testing.T) {
-	tc := []struct {
-		txts []string
-		want []string
-	}{
-		{[]string{"v=spf1 -all", "v=spf2 a -all", " v=spf1 a ~all "}, []string{"v=spf1 -all", "v=spf1 a ~all"}},
-	}
-
-	for _, c := range tc {
-		got := filterSPF(c.txts)
-		assert.Equal(t, c.want, got)
-	}
-}
-
 func TestGetSenderDomain(t *testing.T) {
 	tc := []struct {
 		sender string
