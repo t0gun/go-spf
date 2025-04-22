@@ -23,7 +23,7 @@ type TXTResolver interface {
 
 // DNSResolver uses Go's stdlib to implement TXTResolver.
 type DNSResolver struct {
-	resolver *net.Resolver
+	resolver TXTResolver
 }
 
 // NewDNSResolver returns a DNSResolver whose lookups will honor ctx deadlines/cancellations.
@@ -35,6 +35,11 @@ func NewDNSResolver() *DNSResolver {
 			return d.DialContext(ctx, network, address)
 		},
 	}
+	return &DNSResolver{resolver: r}
+}
+
+// NewCustomDNSResolver allow callers to apply their own custom resolver
+func NewCustomDNSResolver(r TXTResolver) *DNSResolver {
 	return &DNSResolver{resolver: r}
 }
 
