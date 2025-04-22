@@ -3,36 +3,27 @@ package spf
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"strings"
 )
 
+// Errors related to DNS Lookups
 var (
 	ErrMultipleSPF = errors.New("filter found multiple spf records (permerror)")
+	ErrNoDNSrecord = errors.New("DNS record not found")
+	ErrTempErr     = errors.New("temperror: temporary DNS lookup failure")
+	ErrPermErr     = errors.New("permerror: permanent DNS lookup failure")
 )
 
-// TXTResolver defines DNS-TXT lookup behaviour
+// TXTResolver fetches all TXT records for a domain.
 type TXTResolver interface {
-	LookupTXT(ctx context.Context, domain string) (string, error)
+	LookupTXT(ctx context.Context, domain string) ([]string, error)
 }
 
-// DNSResolver wraps Go's *net.Resolver.
+// DNSResolver uses Go's stdlib to implement TXTResolver.
 type DNSResolver struct {
 	resolver *net.Resolver
-}
-
-func (d *DNSResolver) LookupTXT(ctx context.Context, domain string) (string, error) {
-	txts, err := d.resolver.LookupTXT(ctx, domain)
-	if err != nil {
-		return "", err
-	}
-
-	spf, err := filterSPF(txts)
-	if spf == "" && errors.Is(err, ErrMultipleSPF) {
-		return "", ErrMultipleSPF // Return to parent to call perm error
-	}
-
-	return spf, nil
 }
 
 func NewDNSResolver() *DNSResolver {
@@ -41,31 +32,55 @@ func NewDNSResolver() *DNSResolver {
 	}
 }
 
-// filterSPF returns only a single SPF record from a list of TXTs  (RFC 7208 § 3.1).
-func filterSPF(txts []string) (string, error) {
-	var records []string
+func (d *DNSResolver) LookupTXT(ctx context.Context, domain string) ([]string, error) {
+	return d.resolver.LookupTXT(ctx, domain)
+}
 
-	for _, txt := range txts {
-		spf := strings.TrimSpace(txt) // some records can have a leading and trailing white space
-
-		// records begin with a version "v=spf1" (RFC § 4.5).
-		if strings.HasPrefix(strings.ToLower(spf), "v=spf1 ") {
-			records = append(records, spf)
+// GetSPFRecord performs an RFC‑compliant SPF lookup.
+//   - NXDOMAIN → ("", ErrNoDNSrecord)
+//   - SERVFAIL/timeout → ErrTempErr
+//   - any other error → ErrPermErr
+//   - then filters for exactly one "v=spf1" record.
+func (d *DNSResolver) GetSPFRecord(ctx context.Context, domain string) (string, error) {
+	txts, err := d.resolver.LookupTXT(ctx, domain)
+	if err != nil {
+		var dnsErr *net.DNSError
+		if errors.As(err, &dnsErr) {
+			switch {
+			case dnsErr.IsNotFound:
+				return "", ErrNoDNSrecord
+			case dnsErr.Temporary():
+				return "", fmt.Errorf("%w: %v", ErrTempErr, err)
+			}
 		}
-
-		// some records can end with the version. (RFC 7208 § 4.5).
-		if strings.ToLower(spf) == "v=spf1" {
-			records = append(records, spf)
-		}
-
+		return "", fmt.Errorf("%w: %v", ErrPermErr, err)
 	}
+	return filterSPF(txts)
+}
+
+// filterSPF picks exactly one "v=spf1" record (RFC 7208 §4.5).
+//   - 0 records → ("", nil)
+//   - 1 record → (that record, nil)
+//   - >1 record → ("", ErrMultipleSPF)
+func filterSPF(txts []string) (string, error) {
+	const spfV1 = "v=spf1"
+	var found []string
+
+	for _, raw := range txts {
+		s := strings.TrimSpace(raw)
+		fields := strings.Fields(s)
+		if len(fields) > 0 && strings.EqualFold(fields[0], spfV1) {
+			found = append(found, s)
+		}
+	}
+
 	// § 4.5: 0 → none; 1 → ok; >1 → permerror
-	switch len(records) {
+	switch len(found) {
 	case 0:
 		return "", nil // allowed
 
 	case 1:
-		return records[0], nil
+		return found[0], nil
 
 	default:
 		return "", ErrMultipleSPF
