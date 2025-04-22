@@ -26,10 +26,16 @@ type DNSResolver struct {
 	resolver *net.Resolver
 }
 
+// NewDNSResolver returns a DNSResolver whose lookups will honor ctx deadlines/cancellations.
 func NewDNSResolver() *DNSResolver {
-	return &DNSResolver{
-		resolver: net.DefaultResolver,
+	r := &net.Resolver{
+		PreferGo: true, // force pure-Go DNS implementation
+		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+			d := &net.Dialer{}
+			return d.DialContext(ctx, network, address)
+		},
 	}
+	return &DNSResolver{resolver: r}
 }
 
 func (d *DNSResolver) LookupTXT(ctx context.Context, domain string) ([]string, error) {
