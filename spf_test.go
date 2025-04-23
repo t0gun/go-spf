@@ -7,6 +7,7 @@ import (
 )
 
 func TestParseSPF(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 	require := require.New(t)
 
@@ -33,6 +34,7 @@ func TestParseSPF(t *testing.T) {
 }
 
 func TestGetSenderDomain(t *testing.T) {
+	t.Parallel()
 	tc := []struct {
 		sender string
 		domain string

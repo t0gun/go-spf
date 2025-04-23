@@ -15,7 +15,7 @@ import (
 type Result string
 
 const (
-	None      Result = "none"      // no SPF record
+	None      Result = "none"
 	Neutral   Result = "neutral"   // policy exists but gives no assertion
 	Pass      Result = "pass"      // client is authorized
 	Fail      Result = "fail"      // client is NOT authorized
@@ -30,6 +30,7 @@ const (
 	MaxVoidLookups = 2  // DNS look‑ups returning no usable data
 )
 
+// Checker implements a full RFC 7208–compliant SPF policy evaluator.
 type Checker struct {
 	Resolver       TXTResolver
 	MaxLookups     int
@@ -37,6 +38,7 @@ type Checker struct {
 	// Extensible
 }
 
+// NewChecker returns a Checker that uses the given TXTResolver.
 func NewChecker(r TXTResolver) *Checker {
 	return &Checker{
 		Resolver:       r,
@@ -60,7 +62,7 @@ func (c *Checker) CheckHost(ctx context.Context, ip net.IP, domain, sender strin
 	return Neutral, nil
 }
 
-// Convenience wrapper for minimal api
+// Convenience wrapper for minimal api.
 var defaultChecker = NewChecker(NewDNSResolver())
 
 // CheckHost - function here is a package level checker. it's wrapped around the original API
@@ -69,13 +71,13 @@ func CheckHost(ip net.IP, domain, sender string) (Result, error) {
 	return defaultChecker.CheckHost(context.Background(), ip, domain, sender)
 }
 
-///////////////////////////////////////////////////// HELPERS  ///////////////////////////////////////////////////////
 
-// parseSPF : basic parser
+// parseSPF : basic parser.
 func parseSPF(txt string) ([]string, error) {
 	if !strings.HasPrefix(strings.ToLower(txt), "v=spf1") {
 		return nil, fmt.Errorf("invalid SPF record")
 	}
+
 	return strings.Fields(txt)[1:], nil
 }
 
@@ -83,9 +85,11 @@ func parseSPF(txt string) ([]string, error) {
 // It returns the portion after the first '@', and ok==true if an '@' was present.
 // If sender contains no '@', it returns ("", false).
 func getSenderDomain(sender string) (string, bool) {
-	parts := strings.SplitN(sender, "@", 2)
-	if len(parts) == 2 {
+	numofParts := 2
+	parts := strings.SplitN(sender, "@", numofParts)
+	if len(parts) == numofParts {
 		return parts[1], true
 	}
+
 	return "", false
 }

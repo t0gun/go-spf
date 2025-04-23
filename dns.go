@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"time"
 )
 
 // Errors related to DNS Lookups.
@@ -18,6 +19,9 @@ var (
 	ErrTempfail = errors.New("temperror: temporary DNS lookup failure")
 	ErrPermfail = errors.New("permerror: permanent DNS lookup failure")
 )
+
+// DefaultDialTimeout is the fallback time out if the caller does not pass a deadline/cancellation.
+const DefaultDialTimeout = 5 * time.Second
 
 // TXTResolver fetches all TXT records for a domain.
 type TXTResolver interface {
@@ -32,16 +36,21 @@ type DNSResolver struct {
 // NewDNSResolver returns a DNSResolver whose lookups will honor ctx deadlines/cancellations.
 func NewDNSResolver() *DNSResolver {
 	r := &net.Resolver{
+		StrictErrors: true,
 		PreferGo: true, // force pure-Go DNS implementation
 		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
-			d := &net.Dialer{}
+			d := &net.Dialer{ //nolint:exhaustruct
+				Timeout: DefaultDialTimeout,
+			}
+
 			return d.DialContext(ctx, network, address)
 		},
 	}
+
 	return &DNSResolver{resolver: r}
 }
 
-// NewCustomDNSResolver allow callers to apply their own custom resolver
+// NewCustomDNSResolver allow callers to apply their own custom resolver.
 func NewCustomDNSResolver(r TXTResolver) *DNSResolver {
 	return &DNSResolver{resolver: r}
 }
@@ -64,11 +73,13 @@ func (d *DNSResolver) GetSPFRecord(ctx context.Context, domain string) (string, 
 			case dnsErr.IsNotFound:
 				return "", ErrNoDNSrecord
 			case dnsErr.Temporary():
-				return "", fmt.Errorf("%w: %v", ErrTempfail, err)
+				return "", fmt.Errorf("%w: %w", ErrTempfail, err)
 			}
 		}
-		return "", fmt.Errorf("%w: %v", ErrPermfail, err)
+
+		return "", fmt.Errorf("%w: %w", ErrPermfail, err)
 	}
+
 	return filterSPF(txts)
 }
 
