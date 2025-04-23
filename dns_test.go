@@ -33,14 +33,14 @@ func TestGetSPFRecord_ErrorsAndFiltering(t *testing.T) {
 			wantErr:      ErrNoDNSrecord,
 		},
 		{
-			name:         "Temporary DNS → ErrTempErr",
+			name:         "Temporary DNS → ErrTempfail",
 			fakeResolver: &fakeResolver{nil, &net.DNSError{Err: "simulated temp failure", Name: "network down", IsTemporary: true}},
-			wantErr:      ErrTempErr,
+			wantErr:      ErrTempfail,
 		},
 		{
-			name:         "Other DNS error → ErrPermErr",
+			name:         "Other DNS error → ErrPermfail",
 			fakeResolver: &fakeResolver{nil, errors.New("network down")},
-			wantErr:      ErrPermErr,
+			wantErr:      ErrPermfail,
 		},
 		{
 			name:         "No SPF record on existing domain → empty, no error",
@@ -103,7 +103,6 @@ func TestFilterSPF(t *testing.T) {
 				return
 
 			}
-
 			assert.Equal(t, c.wantSPF, got)
 			require.NoError(t, err)
 

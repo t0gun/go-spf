@@ -1,3 +1,6 @@
+// Package spf implements the Sender Policy Framework checker defined in
+// RFC 7208.  The entry‑point is CheckHost, which follows the decision tree in
+// section 4.6.
 package spf
 
 import (
@@ -8,12 +11,12 @@ import (
 	"strings"
 )
 
-// Errors related to DNS Lookups
+// Errors related to DNS Lookups.
 var (
 	ErrMultipleSPF = errors.New("filter found multiple spf records (permerror)")
 	ErrNoDNSrecord = errors.New("DNS record not found")
-	ErrTempErr     = errors.New("temperror: temporary DNS lookup failure")
-	ErrPermErr     = errors.New("permerror: permanent DNS lookup failure")
+	ErrTempfail = errors.New("temperror: temporary DNS lookup failure")
+	ErrPermfail = errors.New("permerror: permanent DNS lookup failure")
 )
 
 // TXTResolver fetches all TXT records for a domain.
@@ -49,8 +52,8 @@ func (d *DNSResolver) LookupTXT(ctx context.Context, domain string) ([]string, e
 
 // GetSPFRecord performs an RFC‑compliant SPF lookup.
 //   - NXDOMAIN → ("", ErrNoDNSrecord)
-//   - SERVFAIL/timeout → ErrTempErr
-//   - any other error → ErrPermErr
+//   - SERVFAIL/timeout → ErrTempfail
+//   - any other error → ErrPermfail
 //   - then filters for exactly one "v=spf1" record.
 func (d *DNSResolver) GetSPFRecord(ctx context.Context, domain string) (string, error) {
 	txts, err := d.resolver.LookupTXT(ctx, domain)
@@ -61,10 +64,10 @@ func (d *DNSResolver) GetSPFRecord(ctx context.Context, domain string) (string, 
 			case dnsErr.IsNotFound:
 				return "", ErrNoDNSrecord
 			case dnsErr.Temporary():
-				return "", fmt.Errorf("%w: %v", ErrTempErr, err)
+				return "", fmt.Errorf("%w: %v", ErrTempfail, err)
 			}
 		}
-		return "", fmt.Errorf("%w: %v", ErrPermErr, err)
+		return "", fmt.Errorf("%w: %v", ErrPermfail, err)
 	}
 	return filterSPF(txts)
 }
@@ -95,7 +98,5 @@ func filterSPF(txts []string) (string, error) {
 
 	default:
 		return "", ErrMultipleSPF
-
 	}
-
 }
