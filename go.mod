@@ -1,4 +1,4 @@
-module github.com/apprentice-systems/go-spf
+module go.apprentice.systems/spf
 
 go 1.23
 
