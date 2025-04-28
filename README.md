@@ -1,5 +1,5 @@
 # go-spf
-[![CI](https://github.com/apprentice-system/go-spf/actions/workflows/go-test.yml/badge.svg?branch=main)](https://github.com/apprentice-systems/go-spf/actions/workflows/go-test.yml)
+[![CI](https://github.com/apprentice-system/go-spf/actions/workflows/go-test.yml/badge.svg?branch=main)](https://github.com/apprentice-system/go-spf/actions/workflows/go-test.yml)
 RFC Compliant Go library for parsing, analyzing, and evaluating SPF records
 > Early proof of concept. The public API compiles and returns Neutral for every input. The real decision tree is in progress. Use at your own risk.
 
