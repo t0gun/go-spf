@@ -20,7 +20,7 @@ func (f *fakeResolver) LookupTXT(ctx context.Context, domain string) ([]string, 
 	return f.txts, f.err
 }
 
-func TestGetSPFRecord_ErrorsAndFiltering(t *testing.T) {
+func TestGetSPFRecord_ErrorsAndFiltering(t *testing.T) { //nolint:paralleltest
 	tc := []struct {
 		name         string
 		fakeResolver *fakeResolver
@@ -61,7 +61,7 @@ func TestGetSPFRecord_ErrorsAndFiltering(t *testing.T) {
 		},
 	}
 
-	for _, c := range tc {
+	for _, c := range tc { //nolint:paralleltest
 		t.Run(c.name, func(t *testing.T) {
 			dr := NewCustomDNSResolver(c.fakeResolver)
 			// ctx with timeout to exercise ctx flow
@@ -71,6 +71,7 @@ func TestGetSPFRecord_ErrorsAndFiltering(t *testing.T) {
 			spf, err := dr.GetSPFRecord(ctx, "example.com")
 			if c.wantErr != nil {
 				require.ErrorIs(t, err, c.wantErr)
+
 				return
 			}
 
@@ -95,11 +96,12 @@ func TestFilterSPF(t *testing.T) {
 		{"", []string{"v=spf1 -all", "v=spf1 a -all", " v=spf10 a ~all "}, "v=spf1 -all", true},
 	}
 
-	for _, c := range tc {
+	for _, c := range tc { //nolint:paralleltest
 		t.Run(c.name, func(t *testing.T) {
 			got, err := filterSPF(c.txts)
 			if c.wantError {
 				require.ErrorIs(t, err, ErrMultipleSPF)
+
 				return
 
 			}
