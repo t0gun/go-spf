@@ -34,3 +34,10 @@ func main() {
 }
 ```
 
+
+## Contributing
+Please feel free to submit issues, fork the repository and send pull requests!
+
+
+## License
+This project is licensed under the terms of the MIT license.
