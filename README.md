@@ -19,7 +19,7 @@ import (
     "fmt"
     "net"
 
-    "github.com/apprentice-systems/go-spf"
+    "github.com/apprentice-system/go-spf"
 )
 
 func main() {
