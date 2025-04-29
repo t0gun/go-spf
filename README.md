@@ -9,8 +9,7 @@ RFC Compliant Go library for parsing, analyzing, and evaluating SPF records
 
 ## Installation
 ```shell
-# Until a real tag is published you must point at main
- go get go.apprentice.systems/spf@main
+ go get go.apprentice.systems/spf
 ```
 
 
