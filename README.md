@@ -10,7 +10,7 @@ RFC Compliant Go library for parsing, analyzing, and evaluating SPF records
 ## Installation
 ```shell
 # Until a real tag is published you must point at main
- go get github.com/apprentice-system/go-spf@main
+ go get go.apprentice.systems/spf@main
 ```
 
 
@@ -22,7 +22,7 @@ import (
     "fmt"
     "net"
 
-    "github.com/apprentice-system/go-spf"
+    "go.apprentice.systems/spf"
 )
 
 func main() {
