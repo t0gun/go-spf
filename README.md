@@ -1,4 +1,4 @@
-# go-spf
+# spf
 [![CI](https://github.com/apprentice-system/go-spf/actions/workflows/go-test.yaml/badge.svg?branch=main)](https://github.com/apprentice-system/go-spf/actions/workflows/go-test.yaml)  
 
 
