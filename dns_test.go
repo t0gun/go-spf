@@ -108,7 +108,6 @@ func TestFilterSPF(t *testing.T) {
 			}
 			assert.Equal(t, c.wantSPF, got)
 			require.NoError(t, err)
-
 		})
 	}
 }
