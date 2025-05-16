@@ -92,6 +92,7 @@ func TestFilterSPF(t *testing.T) {
 		wantError bool
 	}{
 		{"valid spf -all", []string{"v=spf1 -all", "v=spf2 a -all", " v=spf10 a ~all "}, "v=spf1 -all", false},
+		{"valid spf -all", []string{"v=SPF1 -all", "v=spf2 a -all", " v=spf10 a ~all "}, "v=spf1 -all", false},
 		{"valid spf version only", []string{"v=spf1", "v=spf2 ipv4:192.168.0/24"}, "v=spf1", false},
 		{"", []string{"v=spf1 -all", "v=spf1 a -all", " v=spf10 a ~all "}, "v=spf1 -all", true},
 	}

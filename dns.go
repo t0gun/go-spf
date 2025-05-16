@@ -16,8 +16,8 @@ import (
 var (
 	ErrMultipleSPF = errors.New("filter found multiple spf records (permerror)")
 	ErrNoDNSrecord = errors.New("DNS record not found")
-	ErrTempfail = errors.New("temperror: temporary DNS lookup failure")
-	ErrPermfail = errors.New("permerror: permanent DNS lookup failure")
+	ErrTempfail    = errors.New("temperror: temporary DNS lookup failure")
+	ErrPermfail    = errors.New("permerror: permanent DNS lookup failure")
 )
 
 // DefaultDialTimeout is the fallback time out if the caller does not pass a deadline/cancellation.
@@ -37,7 +37,7 @@ type DNSResolver struct {
 func NewDNSResolver() *DNSResolver {
 	r := &net.Resolver{
 		StrictErrors: true,
-		PreferGo: true, // force pure-Go DNS implementation
+		PreferGo:     true, // force pure-Go DNS implementation
 		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
 			d := &net.Dialer{ //nolint:exhaustruct
 				Timeout: DefaultDialTimeout,
@@ -105,7 +105,8 @@ func filterSPF(txts []string) (string, error) {
 		return "", nil // allowed
 
 	case 1:
-		return found[0], nil
+		foundSpf := strings.ToLower(found[0])
+		return foundSpf, nil
 
 	default:
 		return "", ErrMultipleSPF
