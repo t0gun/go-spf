@@ -4,7 +4,7 @@
 
 RFC Compliant Go library for parsing, analyzing, and evaluating SPF records
 >  [!WARNING]
-> Early proof of concept. The public API compiles and returns Neutral for every input. The real decision tree is in progress. Use at your own risk.
+> Early proof of concept. The public API compiles and returns Neutral for every input. The real decision tree is in progress.
 
 
 ## Installation
