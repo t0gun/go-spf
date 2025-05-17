@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-// Result is the outcome of an SPF evaluation (RFC 7208 §8).
+// Result is the outcome of an SPF evaluation (RFC 7208 section 8).
 type Result string
 
 const (
@@ -23,7 +23,7 @@ const (
 	PermError Result = "permerror" // perm error in record or >10 look‑ups
 )
 
-// Limits from RFC 7208 §4.6.4.
+// Limits from RFC 7208 section 4.6.4.
 const (
 	MaxDNSLookups  = 10 // any mechanism that triggers DNS counts
 	MaxVoidLookups = 2  // DNS look‑ups returning no usable data
@@ -50,14 +50,16 @@ func NewChecker(r TXTResolver) *Checker {
 // Convenience wrapper for minimal api.
 var defaultChecker = NewChecker(NewDNSResolver())
 
-// CheckHost implements RFC 7208 §4.6 (the “check_host” function)
-// domain – Domain whose SPF record we start with. Usually:
-//   - the HELO/EHLO hostname, if you’re doing an initial HELO check;
-//   - otherwise the domain part of MAIL FROM.
-//
-// sender – The full MAIL FROM address (<> for bounces). Used only for
-//
-//	macro expansion; leave empty if you’re just checking HELO.
+/*
+	 CheckHost implements RFC 7208 section 4.6 (the “check_host” function)
+	 domain – Domain whose SPF record we start with. Usually:
+	   - the HELO/EHLO hostname, if you’re doing an initial HELO check;
+	   - otherwise the domain part of MAIL FROM.
+
+	 Sender – The full MAIL FROM address (<> for bounces). Used only for
+
+		Macro expansion; leave empty if you’re just checking HELO.
+*/
 func (c *Checker) CheckHost(ctx context.Context, ip net.IP, domain, sender string) (Result, error) {
 
 	// if we reached the end without any match, RFC says neutral
@@ -70,7 +72,7 @@ func CheckHost(ip net.IP, domain, sender string) (Result, error) {
 	return defaultChecker.CheckHost(context.Background(), ip, domain, sender)
 }
 
-// getSenderDomain extracts the domain part of a MAIL FROM address per RFC 7208 § 4.1.
+// getSenderDomain extracts the domain part of a MAIL FROM address per RFC 7208 section 4.1.
 // It returns the portion after the first '@', and ok==true if an '@' was present.
 // If sender contains no '@', it returns ("", false).
 func getSenderDomain(sender string) (string, bool) {
@@ -81,15 +83,4 @@ func getSenderDomain(sender string) (string, bool) {
 	}
 
 	return "", false
-}
-
-// hasNonASCII reports whether the string contains any non-ASCII characters.
-// ASCII code points are ≤ 127, so anything > 127 is non-ASCII.
-func hasNonASCII(s string) bool {
-	for _, r := range s {
-		if r > 127 {
-			return true
-		}
-	}
-	return false
 }
