@@ -30,6 +30,7 @@ var (
 	ErrLabelTooLong   = errors.New("domain label exceeds 63 octets")
 	ErrDomainTooLong  = errors.New("domain exceeds 255 octets")
 	ErrInvalidRune    = errors.New("domain contains disallowed rune")
+	ErrHyphenPosition = errors.New("label begins or ends with hyphen")
 	ErrIDNAConversion = errors.New("IDNA ToASCII failed")
 )
 
