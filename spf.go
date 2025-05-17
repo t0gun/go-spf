@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-// Result is the outcome of an SPF evaluation (RFC 7208 section 8).
+// Result is the outcome of an SPF evaluation (RFC 7208 section 2.6).
 type Result string
 
 const (
