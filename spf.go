@@ -6,7 +6,6 @@ package spf
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"strings"
 )
@@ -48,6 +47,9 @@ func NewChecker(r TXTResolver) *Checker {
 
 }
 
+// Convenience wrapper for minimal api.
+var defaultChecker = NewChecker(NewDNSResolver())
+
 // CheckHost implements RFC 7208 §4.6 (the “check_host” function)
 // domain – Domain whose SPF record we start with. Usually:
 //   - the HELO/EHLO hostname, if you’re doing an initial HELO check;
@@ -62,23 +64,10 @@ func (c *Checker) CheckHost(ctx context.Context, ip net.IP, domain, sender strin
 	return Neutral, nil
 }
 
-// Convenience wrapper for minimal api.
-var defaultChecker = NewChecker(NewDNSResolver())
-
 // CheckHost - function here is a package level checker. it's wrapped around the original API
 // Mostly for callers, not interested in customization.
 func CheckHost(ip net.IP, domain, sender string) (Result, error) {
 	return defaultChecker.CheckHost(context.Background(), ip, domain, sender)
-}
-
-
-// parseSPF : basic parser.
-func parseSPF(txt string) ([]string, error) {
-	if !strings.HasPrefix(strings.ToLower(txt), "v=spf1") {
-		return nil, fmt.Errorf("invalid SPF record")
-	}
-
-	return strings.Fields(txt)[1:], nil
 }
 
 // getSenderDomain extracts the domain part of a MAIL FROM address per RFC 7208 § 4.1.
@@ -92,4 +81,15 @@ func getSenderDomain(sender string) (string, bool) {
 	}
 
 	return "", false
+}
+
+// hasNonASCII reports whether the string contains any non-ASCII characters.
+// ASCII code points are ≤ 127, so anything > 127 is non-ASCII.
+func hasNonASCII(s string) bool {
+	for _, r := range s {
+		if r > 127 {
+			return true
+		}
+	}
+	return false
 }
