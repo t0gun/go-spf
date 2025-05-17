@@ -95,3 +95,70 @@ func getSenderDomain(sender string) (string, bool) {
 
 	return "", false
 }
+
+/*
+validateDomain normalises and validates a raw domain name, according to
+RFC 7208, section 4.3.
+
+Validation steps:
+
+  1. Remove one trailing dot because domains are implicitly absolute.
+  2. Convert the name to its Punycode A-label form with idna.Lookup.ToASCII.
+  3. Apply SPF pre-evaluation checks:
+
+     * Overall length must not exceed 255 octets.
+     * The domain must contain at least two labels (must include a dot).
+     * No empty label may appear except the implicit root.
+     * Each label must be 1–63 octets long.
+     * Labels may contain only lower-case letters, digits, and hyphens.
+     * A hyphen may not appear at the start or end of any label.
+
+On success the function returns the ASCII (lower-case) domain and nil.
+On failure, it returns an empty string and one of the sentinel errors
+and similar.
+*/
+
+func validateDomain(raw string) (string, error) {
+	// Trim the single trailing dot if any
+	raw = strings.TrimSuffix(raw, ".")
+
+	// convert to A-label
+	ascii, err := idna.Lookup.ToASCII(raw)
+	if err != nil {
+		return "", fmt.Errorf("%w: %v", ErrIDNAConversion, err)
+	}
+	ascii = strings.ToLower(ascii)
+
+	// check overall length limit
+	if len(ascii) > 255 {
+		return "", ErrDomainTooLong
+	}
+
+	labels := strings.Split(ascii, ".")
+	if len(labels) < 2 {
+		return "", ErrSingleLabel
+	}
+
+	for _, lbl := range labels {
+		switch {
+		case len(lbl) == 0:
+			return "", ErrEmptyLabel
+
+		case len(lbl) > 63:
+			return "", ErrLabelTooLong
+
+		case lbl[0] == '-' || lbl[len(lbl)-1] == '-':
+			return "", ErrHyphenPosition
+		}
+
+		// Final validation  RFC 1035  constraints
+		for i := 0; i < len(lbl); i++ {
+			b := lbl[i]
+			if !(b >= 'a' && b <= 'z' || b >= '0' && b <= '9' || b == '-') {
+				return "", ErrInvalidRune
+			}
+		}
+	}
+
+	return ascii, nil
+}
