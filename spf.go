@@ -23,6 +23,16 @@ const (
 	PermError Result = "permerror" // perm error in record or >10 look‑ups
 )
 
+// Errors returned by validateDomain RFC Section 4.3
+var (
+	ErrSingleLabel    = errors.New("domain must have at least two labels")
+	ErrEmptyLabel     = errors.New("domain has empty label")
+	ErrLabelTooLong   = errors.New("domain label exceeds 63 octets")
+	ErrDomainTooLong  = errors.New("domain exceeds 255 octets")
+	ErrInvalidRune    = errors.New("domain contains disallowed rune")
+	ErrIDNAConversion = errors.New("IDNA ToASCII failed")
+)
+
 // Limits from RFC 7208 section 4.6.4.
 const (
 	MaxDNSLookups  = 10 // any mechanism that triggers DNS counts
