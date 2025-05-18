@@ -83,7 +83,7 @@ func (d *DNSResolver) GetSPFRecord(ctx context.Context, domain string) (string, 
 	return filterSPF(txts)
 }
 
-// filterSPF picks exactly one "v=spf1" record (RFC 7208 §4.5).
+// filterSPF picks exactly one "v=spf1" record (RFC 7208  section 4.5).
 //   - 0 records → ("", nil)
 //   - 1 record → (that record, nil)
 //   - >1 record → ("", ErrMultipleSPF)
