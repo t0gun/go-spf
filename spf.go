@@ -6,6 +6,8 @@ package spf
 
 import (
 	"context"
+	"errors"
+	"golang.org/x/net/idna"
 	"net"
 	"strings"
 )
@@ -29,8 +31,6 @@ var (
 	ErrEmptyLabel     = errors.New("domain has empty label")
 	ErrLabelTooLong   = errors.New("domain label exceeds 63 octets")
 	ErrDomainTooLong  = errors.New("domain exceeds 255 octets")
-	ErrInvalidRune    = errors.New("domain contains disallowed rune")
-	ErrHyphenPosition = errors.New("label begins or ends with hyphen")
 	ErrIDNAConversion = errors.New("IDNA ToASCII failed")
 )
 
@@ -61,16 +61,14 @@ func NewChecker(r TXTResolver) *Checker {
 // Convenience wrapper for minimal api.
 var defaultChecker = NewChecker(NewDNSResolver())
 
-/*
-	 CheckHost implements RFC 7208 section 4.6 (the “check_host” function)
-	 domain – Domain whose SPF record we start with. Usually:
-	   - the HELO/EHLO hostname, if you’re doing an initial HELO check;
-	   - otherwise the domain part of MAIL FROM.
-
-	 Sender – The full MAIL FROM address (<> for bounces). Used only for
-
-		Macro expansion; leave empty if you’re just checking HELO.
-*/
+// CheckHost implements RFC 7208 section 4.6 (the “check_host” function)
+// domain – Domain whose SPF record we start with. Usually:
+//   - the HELO/EHLO hostname, if you’re doing an initial HELO check;
+//   - otherwise the domain part of MAIL FROM.
+//
+// Sender – The full MAIL FROM address (<> for bounces). Used only for
+//
+// Macro expansion; leave empty if you’re just checking HELO.
 func (c *Checker) CheckHost(ctx context.Context, ip net.IP, domain, sender string) (Result, error) {
 
 	// if we reached the end without any match, RFC says neutral
@@ -96,36 +94,35 @@ func getSenderDomain(sender string) (string, bool) {
 	return "", false
 }
 
-/*
-validateDomain normalises and validates a raw domain name, according to
-RFC 7208, section 4.3.
-
-Validation steps:
-
-  1. Remove one trailing dot because domains are implicitly absolute.
-  2. Convert the name to its Punycode A-label form with idna.Lookup.ToASCII.
-  3. Apply SPF pre-evaluation checks:
-
-     * Overall length must not exceed 255 octets.
-     * The domain must contain at least two labels (must include a dot).
-     * No empty label may appear except the implicit root.
-     * Each label must be 1–63 octets long.
-     * Labels may contain only lower-case letters, digits, and hyphens.
-     * A hyphen may not appear at the start or end of any label.
-
-On success the function returns the ASCII (lower-case) domain and nil.
-On failure, it returns an empty string and one of the sentinel errors
-and similar.
-*/
-
-func validateDomain(raw string) (string, error) {
+// ValidateDomain normalises and validates a raw domain name, according to
+// RFC 7208, section 4.3.
+//
+// Validation steps:
+//
+//  1. Remove one trailing dot because domains are implicitly absolute.
+//
+//  2. Convert the name to its Punycode A-label form with idna.Lookup.ToASCII.
+//
+//  3. Apply SPF pre-evaluation checks:
+//
+//     * Overall length must not exceed 255 octets.
+//     * The domain must contain at least two labels (must include a dot).
+//     * No empty label may appear except the implicit root.
+//     * Each label must be 1–63 octets long.
+//     * Labels may contain only lower-case letters, digits, and hyphens.
+//     * A hyphen may not appear at the start or end of any label.
+//
+// On success the function returns the ASCII (lower-case) domain and nil.
+// On failure, it returns an empty string and one of the sentinel errors
+// and similar.
+func ValidateDomain(raw string) (string, error) {
 	// Trim the single trailing dot if any
 	raw = strings.TrimSuffix(raw, ".")
 
 	// convert to A-label
 	ascii, err := idna.Lookup.ToASCII(raw)
 	if err != nil {
-		return "", fmt.Errorf("%w: %v", ErrIDNAConversion, err)
+		return "", ErrIDNAConversion
 	}
 	ascii = strings.ToLower(ascii)
 
@@ -147,17 +144,8 @@ func validateDomain(raw string) (string, error) {
 		case len(lbl) > 63:
 			return "", ErrLabelTooLong
 
-		case lbl[0] == '-' || lbl[len(lbl)-1] == '-':
-			return "", ErrHyphenPosition
 		}
 
-		// Final validation  RFC 1035  constraints
-		for i := 0; i < len(lbl); i++ {
-			b := lbl[i]
-			if !(b >= 'a' && b <= 'z' || b >= '0' && b <= '9' || b == '-') {
-				return "", ErrInvalidRune
-			}
-		}
 	}
 
 	return ascii, nil
