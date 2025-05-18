@@ -1,5 +1,8 @@
 name: go-test
 
+permissions:
+  contents: read
+
 on:
   push:
     branches:
@@ -10,7 +13,6 @@ on:
 
   schedule:
   - cron: '30 5,17 * * 1'
-
 
 jobs:
   tests:
