@@ -35,7 +35,7 @@ func TestValidateDomain(t *testing.T) {
 	}, ".") + ".com" // 4×63 + 3 dots = 255, OK
 	var tooLongName = longName + "e" // 256 bytes, rejects
 	tc := []struct {
-		name    string
+		name    string // name of test
 		raw     string
 		wantErr bool
 		Err     error
