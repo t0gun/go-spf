@@ -58,6 +58,11 @@ func NewChecker(r TXTResolver) *Checker {
 
 }
 
+type CheckHostResult struct {
+	Code  Result
+	Cause error
+}
+
 // Convenience wrapper for minimal api.
 var defaultChecker = NewChecker(NewDNSResolver())
 
@@ -69,15 +74,15 @@ var defaultChecker = NewChecker(NewDNSResolver())
 // Sender – The full MAIL FROM address (<> for bounces). Used only for
 //
 // Macro expansion; leave empty if you’re just checking HELO.
-func (c *Checker) CheckHost(ctx context.Context, ip net.IP, domain, sender string) (Result, error) {
+func (c *Checker) CheckHost(ctx context.Context, ip net.IP, domain, sender string) (CheckHostResult, error) {
 
 	// if we reached the end without any match, RFC says neutral
-	return Neutral, nil
+	return CheckHostResult{Code: Neutral, Cause: errors.New("policy exist but no given assertation")}, nil
 }
 
 // CheckHost - function here is a package level checker. it's wrapped around the original API
 // Mostly for callers, not interested in customization.
-func CheckHost(ip net.IP, domain, sender string) (Result, error) {
+func CheckHost(ip net.IP, domain, sender string) (CheckHostResult, error) {
 	return defaultChecker.CheckHost(context.Background(), ip, domain, sender)
 }
 
