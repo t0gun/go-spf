@@ -64,8 +64,8 @@ func (d *DNSResolver) LookupTXT(ctx context.Context, domain string) ([]string, e
 //   - SERVFAIL/timeout → ErrTempfail
 //   - any other error → ErrPermfail
 //   - then filters for exactly one "v=spf1" record.
-func (d *DNSResolver) GetSPFRecord(ctx context.Context, domain string) (string, error) {
-	txts, err := d.resolver.LookupTXT(ctx, domain)
+func getSPFRecord(ctx context.Context, domain string, r TXTResolver) (string, error) {
+	txts, err := r.LookupTXT(ctx, domain)
 	if err != nil {
 
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
