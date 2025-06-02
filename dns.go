@@ -67,6 +67,11 @@ func (d *DNSResolver) LookupTXT(ctx context.Context, domain string) ([]string, e
 func (d *DNSResolver) GetSPFRecord(ctx context.Context, domain string) (string, error) {
 	txts, err := d.resolver.LookupTXT(ctx, domain)
 	if err != nil {
+
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return "", err // propagate – let the caller decide
+		}
+
 		var dnsErr *net.DNSError
 		if errors.As(err, &dnsErr) {
 			switch {
