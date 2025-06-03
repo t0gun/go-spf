@@ -181,3 +181,14 @@ func ValidateDomain(raw string) (string, error) {
 
 	return ascii, nil
 }
+
+// localPart returns the part before '@'. if  it's missing, RFC says use "postmaster"
+func localPart(sender string) string {
+	// strip surrounding angle brackets that MTAs sometimes keep.
+	sender = strings.Trim(sender, "<>")
+	if at := strings.IndexByte(sender, '@'); at > 0 {
+		return sender[:at] // real local part
+	}
+
+	return "postmaster"
+}
