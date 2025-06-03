@@ -75,6 +75,31 @@ var defaultChecker = NewChecker(NewDNSResolver())
 //
 // Macro expansion; leave empty if you’re just checking HELO.
 func (c *Checker) CheckHost(ctx context.Context, ip net.IP, domain, sender string) (CheckHostResult, error) {
+	valDomain, err := ValidateDomain(domain)
+	if err != nil {
+		// RFC 7208 section 4.3 malformed domain results to none
+		return CheckHostResult{Code: None, Cause: err}, nil
+	}
+	domain = valDomain
+
+	spfRecord, err := getSPFRecord(ctx, domain, c.Resolver)
+
+	switch {
+	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+		return CheckHostResult{}, err
+	case errors.Is(err, ErrNoDNSrecord):
+		return CheckHostResult{Code: None, Cause: err}, err
+	case errors.Is(err, ErrTempfail):
+		return CheckHostResult{Code: TempError, Cause: err}, nil
+	case errors.Is(err, ErrPermfail), errors.Is(err, ErrMultipleSPF):
+		return CheckHostResult{Code: PermError, Cause: err}, nil
+	case err != nil:
+		return CheckHostResult{}, err
+	}
+
+	if spfRecord == "" {
+		return CheckHostResult{}, err
+	}
 
 
 	// if we reached the end without any match, RFC says neutral
