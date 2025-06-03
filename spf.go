@@ -76,6 +76,7 @@ var defaultChecker = NewChecker(NewDNSResolver())
 // Macro expansion; leave empty if you’re just checking HELO.
 func (c *Checker) CheckHost(ctx context.Context, ip net.IP, domain, sender string) (CheckHostResult, error) {
 
+
 	// if we reached the end without any match, RFC says neutral
 	return CheckHostResult{Code: Neutral, Cause: errors.New("policy exist but no given assertation")}, nil
 }
@@ -121,10 +122,11 @@ func getSenderDomain(sender string) (string, bool) {
 // On failure, it returns an empty string and one of the sentinel errors
 // and similar.
 func ValidateDomain(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
 	// Trim the single trailing dot if any
 	raw = strings.TrimSuffix(raw, ".")
 
-	// convert to A-label
+	// convert to A-label RFC 5890 section 2.3
 	ascii, err := idna.Lookup.ToASCII(raw)
 	if err != nil {
 		return "", ErrIDNAConversion
