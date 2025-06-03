@@ -146,10 +146,11 @@ func getSenderDomain(sender string) (string, bool) {
 // On failure, it returns an empty string and one of the sentinel errors
 // and similar.
 func ValidateDomain(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
 	// Trim the single trailing dot if any
 	raw = strings.TrimSuffix(raw, ".")
 
-	// convert to A-label
+	// convert to A-label RFC 5890 section 2.3
 	ascii, err := idna.Lookup.ToASCII(raw)
 	if err != nil {
 		return "", ErrIDNAConversion
