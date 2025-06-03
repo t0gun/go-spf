@@ -81,12 +81,14 @@ func (c *Checker) CheckHost(ctx context.Context, ip net.IP, domain, sender strin
 		return CheckHostResult{Code: None, Cause: err}, nil
 	}
 	domain = valDomain
-
+	lp := localPart(sender)
+	// rfc 7208 section 4.4 record lookup
 	spfRecord, err := getSPFRecord(ctx, domain, c.Resolver)
 
+	// assertations with switch statement is to conform to rfc 7208 section 4.5 record selection
 	switch {
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
-		return CheckHostResult{}, err
+		return CheckHostResult{}, err // normal go errors because context errors are not rfc defined.
 	case errors.Is(err, ErrNoDNSrecord):
 		return CheckHostResult{Code: None, Cause: err}, err
 	case errors.Is(err, ErrTempfail):
@@ -101,14 +103,20 @@ func (c *Checker) CheckHost(ctx context.Context, ip net.IP, domain, sender strin
 		return CheckHostResult{}, err
 	}
 
-	// if we reached the end without any match, RFC says neutral
-	return CheckHostResult{Code: Neutral, Cause: errors.New("policy exist but no given assertation")}, nil
+	return c.evaluate(ctx, ip, valDomain, spfRecord, lp)
+
 }
 
 // CheckHost - function here is a package level checker. it's wrapped around the original API
 // Mostly for callers, not interested in customization.
 func CheckHost(ip net.IP, domain, sender string) (CheckHostResult, error) {
 	return defaultChecker.CheckHost(context.Background(), ip, domain, sender)
+}
+
+func (c *Checker) evaluate(ctx context.Context, ip net.IP, domain, spf, localPart string) (CheckHostResult, error) {
+
+	// if we reached the end without any match, RFC says neutral
+	return CheckHostResult{Code: Neutral, Cause: errors.New("policy exist but no given assertation")}, nil
 }
 
 // getSenderDomain extracts the domain part of a MAIL FROM address per RFC 7208 section 4.1.
