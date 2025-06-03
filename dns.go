@@ -15,7 +15,7 @@ import (
 // Errors related to DNS Lookups.
 var (
 	ErrMultipleSPF = errors.New("filter found multiple spf records (permerror)")
-	ErrNoDNSrecord = errors.New("DNS record not found")
+	ErrNoDNSrecord = errors.New("DNS record not found (NXDOMAIN)")
 	ErrTempfail    = errors.New("temperror: temporary DNS lookup failure")
 	ErrPermfail    = errors.New("permerror: permanent DNS lookup failure")
 )
@@ -59,7 +59,7 @@ func (d *DNSResolver) LookupTXT(ctx context.Context, domain string) ([]string, e
 	return d.resolver.LookupTXT(ctx, domain)
 }
 
-// GetSPFRecord performs an RFC‑compliant SPF lookup.
+// getSPFRecord performs an RFC‑compliant SPF lookup.
 //   - NXDOMAIN → ("", ErrNoDNSrecord)
 //   - SERVFAIL/timeout → ErrTempfail
 //   - any other error → ErrPermfail
@@ -88,7 +88,7 @@ func getSPFRecord(ctx context.Context, domain string, r TXTResolver) (string, er
 	return filterSPF(txts)
 }
 
-// filterSPF picks exactly one "v=spf1" record (RFC 7208  section 4.5).
+// filterSPF picks exactly one "v=spf1" record (RFC 7208 section 4.5).
 //   - 0 records → ("", nil)
 //   - 1 record → (that record, nil)
 //   - >1 record → ("", ErrMultipleSPF)

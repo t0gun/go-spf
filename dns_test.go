@@ -20,7 +20,7 @@ func (f *fakeResolver) LookupTXT(ctx context.Context, domain string) ([]string, 
 	return f.txts, f.err
 }
 
-func TestGetSPFRecord_ErrorsAndFiltering(t *testing.T) { //nolint:paralleltest
+func TestGetSPFRecord_ErrorsAndFiltering(t *testing.T) {
 	tc := []struct {
 		name         string
 		fakeResolver *fakeResolver
@@ -61,14 +61,14 @@ func TestGetSPFRecord_ErrorsAndFiltering(t *testing.T) { //nolint:paralleltest
 		},
 	}
 
-	for _, c := range tc { //nolint:paralleltest
+	for _, c := range tc {
 		t.Run(c.name, func(t *testing.T) {
 			dr := NewCustomDNSResolver(c.fakeResolver)
 			// ctx with timeout to exercise ctx flow
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 			defer cancel()
 
-			spf, err := dr.GetSPFRecord(ctx, "example.com")
+			spf, err := getSPFRecord(ctx, "example.com", dr)
 			if c.wantErr != nil {
 				require.ErrorIs(t, err, c.wantErr)
 
