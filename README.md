@@ -30,7 +30,7 @@ func main() {
     if err != nil {
         panic(err)
     }
-    fmt.Println(res) // Neutral for now
+    fmt.Println(res.Code) // Neutral for now
 }
 ```
 
