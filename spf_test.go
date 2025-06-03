@@ -82,4 +82,20 @@ func TestValidateDomain(t *testing.T) {
 		})
 	}
 }
- 
+
+func TestLocalPart(t *testing.T) {
+	tc := []struct{ sender, want string }{
+		{"alice@example.com", "alice"},
+		{"<alice@example.com>", "alice"},
+		{"<>", "postmaster"},
+		{"", "postmaster"},
+	}
+
+	for _, c := range tc {
+		t.Run("local parts", func(t *testing.T) {
+			got := localPart(c.sender)
+			assert.Equal(t, got, c.want)
+		})
+	}
+
+}
