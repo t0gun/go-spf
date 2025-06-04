@@ -81,14 +81,7 @@ func (c *Checker) CheckHost(ctx context.Context, ip net.IP, domain, sender strin
 		return CheckHostResult{Code: None, Cause: err}, nil
 	}
 	domain = valDomain
-	lp := localPart(sender)
-	// rfc 7208 section 4.4 record lookup
-	spfRecord, err := getSPFRecord(ctx, domain, c.Resolver)
 
-	// assertations with switch statement is to conform to rfc 7208 section 4.5 record selection
-	switch {
-	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
-		return CheckHostResult{}, err // normal go errors because context errors are not rfc defined.
 	case errors.Is(err, ErrNoDNSrecord):
 		return CheckHostResult{Code: None, Cause: err}, err
 	case errors.Is(err, ErrTempfail):
@@ -103,7 +96,7 @@ func (c *Checker) CheckHost(ctx context.Context, ip net.IP, domain, sender strin
 		return CheckHostResult{}, err
 	}
 
-	return c.evaluate(ctx, ip, valDomain, spfRecord, lp)
+
 
 }
 
