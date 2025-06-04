@@ -45,7 +45,7 @@ type Checker struct {
 	Resolver       TXTResolver
 	MaxLookups     int
 	MaxVoidLookups int
-	// Extensible
+	// Future fields may allow customization of evaluation behaviour.
 }
 
 // NewChecker returns a Checker that uses the given TXTResolver.
@@ -58,22 +58,22 @@ func NewChecker(r TXTResolver) *Checker {
 
 }
 
+// CheckHostResult contains the result code and optional cause returned by
+// CheckHost.
 type CheckHostResult struct {
 	Code  Result
 	Cause error
 }
 
-// Convenience wrapper for minimal api.
+// defaultChecker backs the package-level CheckHost convenience function.
 var defaultChecker = NewChecker(NewDNSResolver())
 
-// CheckHost implements RFC 7208 section 4.6 (the “check_host” function)
-// domain – Domain whose SPF record we start with. Usually:
-//   - the HELO/EHLO hostname, if you’re doing an initial HELO check;
-//   - otherwise the domain part of MAIL FROM.
-//
-// Sender – The full MAIL FROM address (<> for bounces). Used only for
-//
-// Macro expansion; leave empty if you’re just checking HELO.
+// CheckHost implements the "check_host" function from RFC 7208 section 4.6.
+// domain is the name whose SPF record evaluation begins. Typically this is
+// either the HELO/EHLO hostname for an initial HELO check or the domain part of
+// MAIL FROM.
+// sender is the full MAIL FROM address ("<>" for bounces). It is only used for
+// macro expansion and may be empty when checking HELO.
 func (c *Checker) CheckHost(ctx context.Context, ip net.IP, domain, sender string) (CheckHostResult, error) {
 	valDomain, err := ValidateDomain(domain)
 	if err != nil {
@@ -82,13 +82,14 @@ func (c *Checker) CheckHost(ctx context.Context, ip net.IP, domain, sender strin
 	}
 	domain = valDomain
 	lp := localPart(sender)
-	// rfc 7208 section 4.4 record lookup
+	// Perform the SPF record lookup per RFC 7208 section 4.4.
 	spfRecord, err := getSPFRecord(ctx, domain, c.Resolver)
 
-	// assertations with switch statement is to conform to rfc 7208 section 4.5 record selection
+	// Apply the record-selection logic from RFC 7208 section 4.5.
 	switch {
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
-		return CheckHostResult{}, err // normal go errors because context errors are not rfc defined.
+		// Context errors are outside the scope of RFC 7208.
+		return CheckHostResult{}, err
 	case errors.Is(err, ErrNoDNSrecord):
 		return CheckHostResult{Code: None, Cause: err}, err
 	case errors.Is(err, ErrTempfail):
@@ -107,21 +108,22 @@ func (c *Checker) CheckHost(ctx context.Context, ip net.IP, domain, sender strin
 
 }
 
-// CheckHost - function here is a package level checker. it's wrapped around the original API
-// Mostly for callers, not interested in customization.
+// CheckHost is a convenience wrapper around Checker.CheckHost for callers that
+// do not require custom configuration.
 func CheckHost(ip net.IP, domain, sender string) (CheckHostResult, error) {
 	return defaultChecker.CheckHost(context.Background(), ip, domain, sender)
 }
 
 func (c *Checker) evaluate(ctx context.Context, ip net.IP, domain, spf, localPart string) (CheckHostResult, error) {
 
-	// if we reached the end without any match, RFC says neutral
-	return CheckHostResult{Code: Neutral, Cause: errors.New("policy exist but no given assertation")}, nil
+	// If no mechanism matches, RFC 7208 dictates a "neutral" result.
+	return CheckHostResult{Code: Neutral, Cause: errors.New("policy exists but no assertion")}, nil
 }
 
-// getSenderDomain extracts the domain part of a MAIL FROM address per RFC 7208 section 4.1.
-// It returns the portion after the first '@', and ok==true if an '@' was present.
-// If sender contains no '@', it returns ("", false).
+// getSenderDomain extracts the domain part of a MAIL FROM address as described
+// in RFC 7208 section 4.1. It returns the substring after the first '@' and ok
+// set to true when an '@' is present. If sender lacks an '@', it returns ("",
+// false).
 func getSenderDomain(sender string) (string, bool) {
 	numofParts := 2
 	parts := strings.SplitN(sender, "@", numofParts)
@@ -151,8 +153,7 @@ func getSenderDomain(sender string) (string, bool) {
 //     * A hyphen may not appear at the start or end of any label.
 //
 // On success the function returns the ASCII (lower-case) domain and nil.
-// On failure, it returns an empty string and one of the sentinel errors
-// and similar.
+// On failure, it returns an empty string along with a sentinel error.
 func ValidateDomain(raw string) (string, error) {
 	raw = strings.TrimSpace(raw)
 	// Trim the single trailing dot if any
@@ -190,7 +191,8 @@ func ValidateDomain(raw string) (string, error) {
 	return ascii, nil
 }
 
-// localPart returns the part before '@'. if  it's missing, RFC says use "postmaster"
+// localPart returns the portion of the address before '@'. If no '@' is present
+// the address "postmaster" is used as required by RFC 7208.
 func localPart(sender string) string {
 	// strip surrounding angle brackets that MTAs sometimes keep.
 	sender = strings.Trim(sender, "<>")
