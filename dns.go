@@ -50,11 +50,13 @@ func NewDNSResolver() *DNSResolver {
 	return &DNSResolver{resolver: r}
 }
 
-// NewCustomDNSResolver allow callers to apply their own custom resolver.
+// NewCustomDNSResolver allows callers to provide their own TXTResolver.
 func NewCustomDNSResolver(r TXTResolver) *DNSResolver {
 	return &DNSResolver{resolver: r}
 }
 
+// LookupTXT returns all TXT records for domain using the underlying resolver
+// while honoring ctx deadlines and cancellations.
 func (d *DNSResolver) LookupTXT(ctx context.Context, domain string) ([]string, error) {
 	return d.resolver.LookupTXT(ctx, domain)
 }

@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// fake Resolver implements TXT resolver
+// fakeResolver implements TXTResolver for unit tests.
 type fakeResolver struct {
 	txts []string
 	err  error
