@@ -1,8 +1,11 @@
 package spf
 
 import (
+	"context"
+	"errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"net"
 	"strings"
 	"testing"
 )
