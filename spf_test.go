@@ -103,6 +103,7 @@ func TestLocalPart(t *testing.T) {
 
 }
 
+
 func TestChecker_CheckHost(t *testing.T) {
 	ip := net.ParseIP("127.0.0.1")
 
@@ -184,3 +185,4 @@ func TestChecker_CheckHost(t *testing.T) {
 		})
 	}
 }
+
