@@ -1,5 +1,6 @@
 # spf
-[![CI](https://github.com/apprentice-system/go-spf/actions/workflows/go-test.yaml/badge.svg?branch=main)](https://github.com/apprentice-system/go-spf/actions/workflows/go-test.yaml)  
+[![CI](https://github.com/apprentice-system/go-spf/actions/workflows/go-test.yaml/badge.svg?branch=main)](https://github.com/apprentice-system/go-spf/actions/workflows/go-test.yaml)    [![Go Reference](https://pkg.go.dev/badge/go.apprentice.systems/spf.svg)](https://pkg.go.dev/go.apprentice.systems/spf)
+
 
 
 RFC Compliant Go library for parsing, analyzing, and evaluating SPF records
