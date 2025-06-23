@@ -105,15 +105,27 @@ func parseIP4(q Qualifier, rest string) (*Mechanism, error) {
 	if !strings.HasPrefix(rest, "ip4:") {
 		return nil, fmt.Errorf("no match")
 	}
+
 	cidr := strings.TrimPrefix(rest, "ip4:")
+
+	// If there’s no slash, assume /32 (single host)
+	if !strings.ContainsRune(cidr, '/') {
+		cidr += "/32"
+	}
+
 	ip, netw, err := net.ParseCIDR(cidr)
 	if err != nil || ip.To4() == nil {
-		return nil, fmt.Errorf("bad ipcidr %q", cidr) //perm error
+		return nil, fmt.Errorf("bad ipcidr %q", cidr) // permanent error
 	}
+
 	ones, _ := netw.Mask.Size()
-	if ones > 32 {
+	if ones > 32 { // theoretically impossible after the fix, but keep the guard
 		return nil, fmt.Errorf("cidr out of range")
 	}
 
-	return &Mechanism{Qual: q, Kind: "ip4", Net: netw}, nil
+	return &Mechanism{
+		Qual: q,
+		Kind: "ip4",
+		Net:  netw,
+	}, nil
 }
