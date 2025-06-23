@@ -33,4 +33,3 @@ jobs:
       -  run: go version
       -  run: go mod tidy
       -  run: go test -race ./...
-
