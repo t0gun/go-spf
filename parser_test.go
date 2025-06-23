@@ -12,6 +12,11 @@ func mech(q Qualifier, kind string) Mechanism {
 	return Mechanism{Qual: q, Kind: kind}
 }
 
+func mechip4(q Qualifier, cidr string) Mechanism {
+	_, net, _ := net2.ParseCIDR(cidr)
+	return Mechanism{Qual: q, Kind: "ip4", Net: net}
+}
+
 func TestParse(t *testing.T) {
 	cases := []struct {
 		name    string
