@@ -1,6 +1,7 @@
 package spf
 
 import (
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,7 +14,7 @@ func mech(q Qualifier, kind string) Mechanism {
 }
 
 func mechip4(q Qualifier, cidr string) Mechanism {
-	_, n, _ := net2.ParseCIDR(cidr)
+	_, n, _ := net.ParseCIDR(cidr)
 	return Mechanism{Qual: q, Kind: "ip4", Net: n}
 }
 
