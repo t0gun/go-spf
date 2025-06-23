@@ -100,3 +100,20 @@ func parseAll(q Qualifier, rest string) (*Mechanism, error) {
 	}
 	return &Mechanism{Qual: q, Kind: "all"}, nil
 }
+
+func parseIP4(q Qualifier, rest string) (*Mechanism, error) {
+	if !strings.HasPrefix(rest, "ip4:") {
+		return nil, fmt.Errorf("no match")
+	}
+	cidr := strings.TrimPrefix(rest, "ip4:")
+	ip, netw, err := net.ParseCIDR(cidr)
+	if err != nil || ip.To4() == nil {
+		return nil, fmt.Errorf("bad ipcidr %q", cidr) //perm error
+	}
+	ones, _ := netw.Mask.Size()
+	if ones > 32 {
+		return nil, fmt.Errorf("cidr out of range")
+	}
+
+	return &Mechanism{Qual: q, Kind: "ip4", Net: netw}, nil
+}
