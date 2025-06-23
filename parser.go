@@ -53,11 +53,14 @@ func Parse(rawTXT string) (*Record, error) {
 	for _, tok := range tokens {
 		q, rest := stripQualifier(tok)
 
-		// for now, we parse -all.all others are not recognised
+		// for now, we parse -all
 		mech, err := parseAll(q, rest)
 		if err != nil {
-			// no all or real syntax error
-			return nil, fmt.Errorf("permerror: unknown mechanism %q", tok)
+			mech, err = parseIP4(q, rest) // not all try ip4
+		}
+
+		if err != nil {
+			return nil, fmt.Errorf("permerror: %v", err)
 		}
 		record.Mechs = append(record.Mechs, *mech)
 
