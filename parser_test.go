@@ -13,8 +13,8 @@ func mech(q Qualifier, kind string) Mechanism {
 }
 
 func mechip4(q Qualifier, cidr string) Mechanism {
-	_, net, _ := net2.ParseCIDR(cidr)
-	return Mechanism{Qual: q, Kind: "ip4", Net: net}
+	_, n, _ := net2.ParseCIDR(cidr)
+	return Mechanism{Qual: q, Kind: "ip4", Net: n}
 }
 
 func TestParse(t *testing.T) {
