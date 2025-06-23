@@ -25,8 +25,27 @@ func TestParse(t *testing.T) {
 		want    []Mechanism
 		wantErr bool
 	}{
-		{name: "minimal -all", spf: "v=spf1 -all", want: []Mechanism{mech(QMinus, "all")}},
-		{name: "implicit +all", spf: "v=spf1 all", want: []Mechanism{mech(QPlus, "all")}},
+		{
+			name: "ip4 then -all",
+			spf:  "v=spf1 ip4:203.0.113.0/24 -all",
+			want: []Mechanism{mechip4(QPlus, "203.0.113.0/24"), mech(QMinus, "all")},
+		},
+
+		{
+			name: "implicit +all",
+			spf:  "v=spf1 all",
+			want: []Mechanism{mech(QPlus, "all")}},
+
+		{
+			name:    "bad cidr",
+			spf:     "v=spf1 ip4:203.0.113.0/99 -all",
+			wantErr: true,
+		},
+		{
+			name: "ipv with no mask then ~all",
+			spf:  "v=spf1 +ip4:203.0.113.23 ~all",
+			want: []Mechanism{mechip4(QPlus, "203.0.113.23/32"), mech(QTilde, "all")},
+		},
 	}
 
 	for _, tc := range cases {
