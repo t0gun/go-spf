@@ -53,15 +53,19 @@ func Parse(rawTXT string) (*Record, error) {
 	for _, tok := range tokens {
 		q, rest := stripQualifier(tok)
 
-		// for now, we parse -all
 		mech, err := parseAll(q, rest)
 		if err != nil {
 			mech, err = parseIP4(q, rest) // not all try ip4
 		}
 
 		if err != nil {
+			mech, err = parseIP6(q, rest)
+		}
+
+		if err != nil {
 			return nil, fmt.Errorf("permerror: %v", err)
 		}
+
 		record.Mechs = append(record.Mechs, *mech)
 
 	}
