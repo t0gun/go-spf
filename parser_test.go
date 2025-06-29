@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-/* ---------- quick helpers ---------- */
+// ---------- quick helpers ---------- //
 func mech(q Qualifier, kind string) Mechanism {
 	return Mechanism{Qual: q, Kind: kind}
 }
