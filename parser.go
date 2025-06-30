@@ -48,27 +48,28 @@ type Record struct {
 func Parse(rawTXT string) (*Record, error) {
 	tokens, err := tokenizer(rawTXT)
 	if err != nil {
-		return nil, err // permerror
+		return nil, err
+	}
+
+	// ordered list of mechanism parsers
+	mechParsers := []func(Qualifier, string) (*Mechanism, error){
+		parseAll, parseIP4, parseIP6, parseA,
 	}
 	record := &Record{}
 	for _, tok := range tokens {
 		q, rest := stripQualifier(tok)
 
-		mech, err := parseAll(q, rest)
-		if err != nil {
-			mech, err = parseIP4(q, rest) // not all try ip4
+		var mech *Mechanism
+		var perr error
+		for _, pf := range mechParsers {
+			if mech, perr = pf(q, rest); perr == nil {
+				break // found a match
+			}
 		}
-
-		if err != nil {
-			mech, err = parseIP6(q, rest)
+		if perr != nil {
+			return nil, fmt.Errorf("permerror: %v", perr)
 		}
-
-		if err != nil {
-			return nil, fmt.Errorf("permerror: %v", err)
-		}
-
 		record.Mechs = append(record.Mechs, *mech)
-
 	}
 	return record, nil
 }
