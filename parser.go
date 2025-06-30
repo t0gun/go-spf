@@ -53,7 +53,7 @@ func Parse(rawTXT string) (*Record, error) {
 
 	// ordered list of mechanism parsers
 	mechParsers := []func(Qualifier, string) (*Mechanism, error){
-		parseAll, parseIP4, parseIP6, parseA,
+		parseAll, parseIP4, parseIP6, parseA, parseMX,
 	}
 	record := &Record{}
 	for _, tok := range tokens {
@@ -269,4 +269,68 @@ func parseMasks(maskstr string) (mask4, mask6 int, err error) {
 		err = fmt.Errorf("too many / segments in mask")
 	}
 	return
+}
+
+// parseMX - RFC 7208 section 5.4  —  “mx” mechanism
+//
+// ABNF recap (very similar to “a”):
+//
+//	mx                ; current domain’s MX hosts, default masks
+//	mx/24             ; v4 mask 24, v6 = unlimited
+//	mx/24/64          ; v4 mask 24, v6 mask 64
+//	mx:example.org    ; explicit domain, default masks
+//	mx:example.org/24 ; explicit domain, v4 mask 24
+//	mx:example.org/24/64
+//
+// If ip4-cidr-length is missing  → assume /32     ( section 5.6)
+// If ip6-cidr-length is missing  → assume /128    (section 5.6)
+//
+// Any syntax error is a permerror; the helper returns a normal error and the
+// dispatcher wraps it.
+func parseMX(q Qualifier, rest string) (*Mechanism, error) {
+	if !strings.HasPrefix(rest, "mx") {
+		return nil, fmt.Errorf("no match") // dispatcher will try the next helper
+	}
+	spec := rest[2:] // trim leading mx
+	domain := ""     // empty = “current” SPF domain
+	mask4, mask6 := -1, -1
+
+	switch {
+	case spec == "":
+		// bare mx, nothing to parse
+	case strings.HasPrefix(spec, "/"):
+		// "/mask" OR "/mask4/mask6"
+		var err error
+		mask4, mask6, err = parseMasks(strings.TrimPrefix(spec, "/"))
+		if err != nil {
+			return nil, err
+		}
+	case strings.HasPrefix(spec, ""):
+		// ":domain"["/"...]
+		afterColon := strings.TrimPrefix(spec, ":")
+		domainPart, maskPart, _ := strings.Cut(afterColon, "/")
+		if domainPart != "" {
+			if _, err := ValidateDomain(domainPart); err != nil {
+				return nil, fmt.Errorf("bad domain %q", domainPart)
+			}
+			domain = domainPart
+		}
+		if maskPart != "" {
+			var err error
+			mask4, mask6, err = parseMasks(maskPart)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+	default:
+		return nil, fmt.Errorf("invalid mx-mechanism syntax %q", rest)
+	}
+	return &Mechanism{
+		Qual:   q,
+		Kind:   "mx",
+		Domain: domain,
+		Mask4:  mask4,
+		Mask6:  mask6,
+	}, nil
 }
