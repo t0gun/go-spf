@@ -27,6 +27,10 @@ func aMech(q Qualifier, domain string, m4, m6 int) Mechanism {
 	return Mechanism{Qual: q, Kind: "a", Domain: domain, Mask4: m4, Mask6: m6}
 }
 
+func mxMech(q Qualifier, domain string, m4, m6 int) Mechanism {
+	return Mechanism{Qual: q, Kind: "mx", Domain: domain, Mask4: m4, Mask6: m6}
+}
+
 func TestParse(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -96,6 +100,22 @@ func TestParse(t *testing.T) {
 		{
 			name:    "a too many slashes",
 			spf:     "v=spf1 a24/64/96 -all",
+			wantErr: true,
+		},
+		{
+			name: "mx with masks",
+			spf:  "v=spf1 mx/24 -all",
+			want: []Mechanism{mxMech(QPlus, "", 24, -1), mech(QMinus, "all")},
+		},
+
+		{
+			name: "mx explicit domain, dual masks",
+			spf:  "v=spf1 mx:mail.example.org/24/64 -all",
+			want: []Mechanism{mxMech(QPlus, "mail.example.org", 24, 64), mech(QMinus, "all")},
+		},
+		{
+			name:    "mx bad v6 mask",
+			spf:     "v=spf1 mx/124/129 ~all",
 			wantErr: true,
 		},
 	}
