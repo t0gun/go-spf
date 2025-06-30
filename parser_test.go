@@ -23,6 +23,10 @@ func mechip6(q Qualifier, cidr string) Mechanism {
 	return Mechanism{Qual: q, Kind: "ip6", Net: n}
 }
 
+func aMech(q Qualifier, domain string, m4, m6 int) Mechanism {
+	return Mechanism{Qual: q, Kind: "a", Domain: domain, Mask4: m4, Mask6: m6}
+}
+
 func TestParse(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -66,6 +70,32 @@ func TestParse(t *testing.T) {
 		{
 			name:    "bad ipv6 cidr",
 			spf:     "v=spf1 ip6:2001:db8::/200 -all",
+			wantErr: true,
+		},
+
+		{
+			name: "bare a defaults with all",
+			spf:  "v=spf1 a -all",
+			want: []Mechanism{aMech(QPlus, "", -1, -1), mech(QMinus, "all")},
+		},
+		{
+			name: "a with /24",
+			spf:  "v=spf1 a/24 -all",
+			want: []Mechanism{aMech(QPlus, "", 24, -1), mech(QMinus, "all")},
+		},
+		{
+			name: "a explicit domain dual masks",
+			spf:  "v=spf1 a:mail.example.com/24/64 -all",
+			want: []Mechanism{aMech(QPlus, "mail.example.com", 24, 64), mech(QMinus, "all")},
+		},
+		{
+			name:    "a bad v4 mask",
+			spf:     "v=spf1 a/33 -all",
+			wantErr: true,
+		},
+		{
+			name:    "a too many slashes",
+			spf:     "v=spf1 a24/64/96 -all",
 			wantErr: true,
 		},
 	}
