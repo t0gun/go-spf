@@ -1,4 +1,4 @@
-module github.com/thinkops/spf
+module github.com/mailspire/spf
 
 go 1.23.0
 
