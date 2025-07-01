@@ -1,6 +1,7 @@
-// Package spf implements the Sender Policy Framework checker defined in
-// RFC 7208.  The entry‑point is CheckHost, which follows the decision tree in
-// section 4.6.
+// Package spf implements a checker for the Sender Policy Framework as defined
+// by RFC 7208.  The primary entry point is CheckHost which walks the decision
+// tree in section 4.6 to determine the authorization result for a given IP
+// and domain.
 
 package spf
 
@@ -25,7 +26,8 @@ const (
 	PermError Result = "permerror" // perm error in record or >10 look‑ups
 )
 
-// Errors returned by validateDomain RFC Section 4.3
+// Errors returned by ValidateDomain.  Each corresponds to one of the
+// syntax checks described in RFC 7208 section 4.3.
 var (
 	ErrSingleLabel    = errors.New("domain must have at least two labels")
 	ErrEmptyLabel     = errors.New("domain has empty label")
@@ -68,12 +70,11 @@ type CheckHostResult struct {
 // defaultChecker backs the package-level CheckHost convenience function.
 var defaultChecker = NewChecker(NewDNSResolver())
 
-// CheckHost implements the "check_host" function from RFC 7208 section 4.6.
-// domain is the name whose SPF record evaluation begins. Typically this is
-// either the HELO/EHLO hostname for an initial HELO check or the domain part of
-// MAIL FROM.
-// sender is the full MAIL FROM address ("<>" for bounces). It is only used for
-// macro expansion and may be empty when checking HELO.
+// CheckHost implements the "check_host" algorithm from RFC 7208 section 4.6.
+// The domain parameter is the name where SPF evaluation begins.  Typically this
+// is the EHLO hostname or the domain part of MAIL FROM.  The sender parameter is
+// the full MAIL FROM address ("<>" for bounces) and is used only for macro
+// expansion.
 func (c *Checker) CheckHost(ctx context.Context, ip net.IP, domain, sender string) (CheckHostResult, error) {
 	valDomain, err := ValidateDomain(domain)
 	if err != nil {
@@ -114,6 +115,9 @@ func CheckHost(ip net.IP, domain, sender string) (CheckHostResult, error) {
 	return defaultChecker.CheckHost(context.Background(), ip, domain, sender)
 }
 
+// evaluate walks the SPF decision tree for the given record.  It is a
+// placeholder for the logic described in RFC 7208 section 4.6 and currently
+// returns Neutral for all inputs.
 func (c *Checker) evaluate(ctx context.Context, ip net.IP, domain, spf, localPart string) (CheckHostResult, error) {
 
 	// If no mechanism matches, RFC 7208 dictates a "neutral" result.
@@ -191,8 +195,8 @@ func ValidateDomain(raw string) (string, error) {
 	return ascii, nil
 }
 
-// localPart returns the portion of the address before '@'. If no '@' is present
-// the address "postmaster" is used as required by RFC 7208.
+// localPart extracts the string before '@'.  If the input lacks '@', RFC 7208
+// section 4.1 requires that "postmaster" be used instead.
 func localPart(sender string) string {
 	// strip surrounding angle brackets that MTAs sometimes keep.
 	sender = strings.Trim(sender, "<>")

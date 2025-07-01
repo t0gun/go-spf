@@ -9,31 +9,39 @@ import (
 
 // ========= core AST types ========= //
 
+// Qualifier represents the prefix modifier for a mechanism as defined in
+// RFC 7208 section 4.6.  It controls how a match affects the overall result.
 type Qualifier rune
 
 const (
-	QPlus  Qualifier = '+'
-	QMinus Qualifier = '-'
-	QTilde Qualifier = '~'
-	QMark  Qualifier = '?'
+	QPlus  Qualifier = '+' // pass
+	QMinus Qualifier = '-' // fail
+	QTilde Qualifier = '~' // softfail
+	QMark  Qualifier = '?' // neutral
 )
 
+// Modifier represents a key=value term such as "redirect" or "exp" from
+// RFC 7208 section 6.  The value may contain macros which are expanded during
+// evaluation.
 type Modifier struct {
 	Name  string // "redirect" / "exp" / anything-else
 	Value string // raw RHS (may contain macros)
 }
 
+// Mechanism describes one mechanism term in an SPF record.  The fields are
+// populated according to the specific mechanism type as defined in RFC 7208
+// section 5.
 type Mechanism struct {
 	Qual   Qualifier
 	Kind   string     // "all", "ipv4"
 	Net    *net.IPNet // only ipv4/ipv6 set this
-	Domain string     // only a mx, include, exists use this
-	Mask4  int        //only a/mx when dual CIDR present
+	Domain string     // only a, mx, include, exists use this
+	Mask4  int        // only a/mx when dual CIDR present
 	Mask6  int
 	Macro  string // only exists and later exp uses this
 }
 
-// Record -- A whole SPF record in one place.
+// Record holds a parsed SPF record.
 type Record struct {
 	Mechs    []Mechanism
 	Redirect *Modifier // nil or the modifier
@@ -42,8 +50,8 @@ type Record struct {
 }
 
 /* ========= public parser entry-point ========= */
-// Parse validates the RFC 7208 grammar and returns  the parsed Terms.RFC 7208 Section 4.6
-// It performs zero DNS or macro expansion; section 5 evaluation lives elsewhere.
+// Parse checks the record syntax defined in RFC 7208 section 4.6 and returns a structured representation.
+// The function performs no DNS lookups or macro expansion; evaluation according to section 5 is handled elsewhere.
 
 func Parse(rawTXT string) (*Record, error) {
 	tokens, err := tokenizer(rawTXT)
@@ -74,7 +82,9 @@ func Parse(rawTXT string) (*Record, error) {
 	return record, nil
 }
 
-// tokenizer splits the string on ASCII spaces and throws away the version tag
+// tokenizer splits a raw SPF record into whitespace-separated terms and drops
+// the leading "v=spf1" version tag.  It implements the tokenisation described
+// in RFC 7208 section 4.6.
 func tokenizer(raw string) ([]string, error) {
 	raw = strings.TrimSpace(raw)
 	if !strings.HasPrefix(strings.ToLower(raw), "v=spf1") {
@@ -103,6 +113,8 @@ func stripQualifier(tok string) (Qualifier, string) {
 	}
 }
 
+// parseAll parses the "all" mechanism.  It matches any sender and has no
+// arguments as specified in RFC 7208 section 5.1.
 func parseAll(q Qualifier, rest string) (*Mechanism, error) {
 	if rest != "all" {
 		return nil, fmt.Errorf("not all")
@@ -110,6 +122,8 @@ func parseAll(q Qualifier, rest string) (*Mechanism, error) {
 	return &Mechanism{Qual: q, Kind: "all"}, nil
 }
 
+// parseIP4 parses the "ip4" mechanism which matches IPv4 networks as described
+// in RFC 7208 section 5.2.
 func parseIP4(q Qualifier, rest string) (*Mechanism, error) {
 	if !strings.HasPrefix(rest, "ip4:") {
 		return nil, fmt.Errorf("no match")
@@ -139,6 +153,8 @@ func parseIP4(q Qualifier, rest string) (*Mechanism, error) {
 	}, nil
 }
 
+// parseIP6 parses the "ip6" mechanism which matches IPv6 networks as defined in
+// RFC 7208 section 5.2.
 func parseIP6(q Qualifier, rest string) (*Mechanism, error) {
 	if !strings.HasPrefix(rest, "ip6:") {
 		return nil, fmt.Errorf("no match")
@@ -234,7 +250,8 @@ func parseA(q Qualifier, rest string) (*Mechanism, error) {
 	}, nil
 }
 
-// parseMasks convert "24" or "24/64" into two ints.
+// parseMasks converts "24" or "24/64" into two integers.  It is used by the
+// A and MX mechanism parsers to interpret CIDR length suffixes.
 // input string examples :
 //
 //	"24"       -> mask4=24 mask6=-1
