@@ -1,4 +1,4 @@
-module go.apprentice.systems/spf
+module github.com/thinkops/spf
 
 go 1.23.0
 

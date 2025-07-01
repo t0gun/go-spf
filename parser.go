@@ -42,7 +42,7 @@ type Record struct {
 }
 
 /* ========= public parser entry-point ========= */
-// Parse validates the RFC 7208 grammar and returns a slice of Terms.RFC 7208 Section 4.6
+// Parse validates the RFC 7208 grammar and returns  the parsed Terms.RFC 7208 Section 4.6
 // It performs zero DNS or macro expansion; section 5 evaluation lives elsewhere.
 
 func Parse(rawTXT string) (*Record, error) {
