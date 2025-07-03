@@ -38,7 +38,7 @@ type Mechanism struct {
 	Domain string     // only a, mx, include, exists use this
 	Mask4  int        // only a/mx when dual CIDR present
 	Mask6  int
-	Macro  string // only exists and later exp uses this
+	Macro  bool // only exists and later exp uses this
 }
 
 // Record holds a parsed SPF record.
@@ -365,18 +365,19 @@ func parsePTR(q Qualifier, rest string) (*Mechanism, error) {
 	}
 	spec := rest[3:] // trim leading "ptr"
 	domain := ""     // empty -> current SPF domain
+	hasMacro := strings.ContainsRune(spec, '%')
 	switch {
 	case spec == "":
 		// bare "ptr" - nothing to do here
 	case strings.HasPrefix(spec, ":"):
-		target := strings.TrimPrefix(spec, ":")
+		spec = strings.TrimPrefix(spec, ":")
 		// if target has no macros, sanity check goes in
-		if !strings.ContainsRune(target, '%') {
-			if _, err := ValidateDomain(target); err != nil {
-				return nil, fmt.Errorf("bad ptr domain %q", target)
+		if !hasMacro {
+			if _, err := ValidateDomain(spec); err != nil {
+				return nil, fmt.Errorf("bad ptr domain %q", spec)
 			}
 		}
-		domain = target
+		domain = spec
 	default:
 		return nil, fmt.Errorf("invalid ptr-mechanism syntax %q", rest)
 	}
@@ -384,6 +385,7 @@ func parsePTR(q Qualifier, rest string) (*Mechanism, error) {
 		Qual:   q,
 		Kind:   "ptr",
 		Domain: domain,
+		Macro:  hasMacro,
 	}, nil
 }
 
@@ -406,16 +408,19 @@ func parseExists(q Qualifier, rest string) (*Mechanism, error) {
 		return nil, fmt.Errorf("empty exists domain") // will break spf
 	}
 
+	hasMacro := strings.ContainsRune(spec, '%')
+
 	// if there are no  macros, validate the name now.
-	if !strings.ContainsAny(spec, "%{") {
+	if !hasMacro {
 		if _, err := ValidateDomain(spec); err != nil {
 			return nil, fmt.Errorf("bad exists domain %q", spec)
 		}
+
 	}
 	return &Mechanism{
 		Qual:   q,
 		Kind:   "exists",
-		Domain: spec,
-		Macro:  spec,
+		Domain: spec, // raw, possibly macro-containing string
+		Macro:  hasMacro,
 	}, nil
 }
