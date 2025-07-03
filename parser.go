@@ -386,3 +386,36 @@ func parsePTR(q Qualifier, rest string) (*Mechanism, error) {
 		Domain: domain,
 	}, nil
 }
+
+// parseExists parses the “exists” mechanism – RFC 7208 section 5.7.
+//
+//	exists:domain-spec
+//
+// domain-spec may include macros (e.g. "%{i}.example.com").
+// If it contains no macro chars, we do a quick ValidateDomain check now.
+//
+// On match, the evaluator will perform a DNS A/AAAA lookup of the expanded
+// domain and succeed if there’s any record.
+func parseExists(q Qualifier, rest string) (*Mechanism, error) {
+	const prefix = "exists:"
+	if !strings.HasPrefix(rest, prefix) {
+		return nil, fmt.Errorf("no match")
+	}
+	spec := rest[len(prefix):]
+	if spec == "" {
+		return nil, fmt.Errorf("empty exists domain") // will break spf
+	}
+
+	// if there are no  macros, validate the name now.
+	if !strings.ContainsAny(spec, "%{") {
+		if _, err := ValidateDomain(spec); err != nil {
+			return nil, fmt.Errorf("bad exists domain %q", spec)
+		}
+	}
+	return &Mechanism{
+		Qual:   q,
+		Kind:   "exists",
+		Domain: spec,
+		Macro:  spec,
+	}, nil
+}
