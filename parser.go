@@ -61,7 +61,7 @@ func Parse(rawTXT string) (*Record, error) {
 
 	// ordered list of mechanism parsers
 	mechParsers := []func(Qualifier, string) (*Mechanism, error){
-		parseAll, parseIP4, parseIP6, parseA, parseMX,
+		parseAll, parseIP4, parseIP6, parseA, parseMX, parsePTR,
 	}
 	record := &Record{}
 	for _, tok := range tokens {
@@ -349,5 +349,40 @@ func parseMX(q Qualifier, rest string) (*Mechanism, error) {
 		Domain: domain,
 		Mask4:  mask4,
 		Mask6:  mask6,
+	}, nil
+}
+
+// parsePTR parses the “ptr” mechanism – RFC 7208  section 5.5.
+//
+//	ptr              ; current domain
+//	ptr:example.org  ; explicit target domain (can contain macros)
+//
+// The RFC allows <domain-spec> to contain macros.  We store the raw text
+// in Mechanism.Domain; macro expansion happens during evaluation.
+func parsePTR(q Qualifier, rest string) (*Mechanism, error) {
+	if !strings.HasPrefix(rest, "ptr") {
+		return nil, fmt.Errorf(" no match")
+	}
+	spec := rest[3:] // trim leading "ptr"
+	domain := ""     // empty -> current SPF domain
+	switch {
+	case spec == "":
+		// bare "ptr" - nothing to do here
+	case strings.HasPrefix(spec, ":"):
+		target := strings.TrimPrefix(spec, ":")
+		// if target has no macros, sanity check goes in
+		if !strings.ContainsRune(target, '%') {
+			if _, err := ValidateDomain(target); err != nil {
+				return nil, fmt.Errorf("bad ptr domain %q", target)
+			}
+		}
+		domain = target
+	default:
+		return nil, fmt.Errorf("invalid ptr-mechanism syntax %q", rest)
+	}
+	return &Mechanism{
+		Qual:   q,
+		Kind:   "ptr",
+		Domain: domain,
 	}, nil
 }
