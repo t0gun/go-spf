@@ -31,8 +31,8 @@ func mxMech(q Qualifier, domain string, m4, m6 int) Mechanism {
 	return Mechanism{Qual: q, Kind: "mx", Domain: domain, Mask4: m4, Mask6: m6}
 }
 
-func ptrMech(q Qualifier, domain string) Mechanism {
-	return Mechanism{Qual: q, Kind: "ptr", Domain: domain}
+func ptrMech(q Qualifier, domain string, hasMacro bool) Mechanism {
+	return Mechanism{Qual: q, Kind: "ptr", Domain: domain, Macro: hasMacro}
 }
 
 func TestParse(t *testing.T) {
@@ -125,17 +125,17 @@ func TestParse(t *testing.T) {
 		{
 			name: "bare ptr then -all",
 			spf:  "v=spf1 ptr -all",
-			want: []Mechanism{ptrMech(QPlus, ""), mech(QMinus, "all")},
+			want: []Mechanism{ptrMech(QPlus, "", false), mech(QMinus, "all")},
 		},
 		{
 			name: "ptr explicit domain with softfail all",
 			spf:  "v=spf1 ~ptr:example.com -all",
-			want: []Mechanism{ptrMech(QTilde, "example.com"), mech(QMinus, "all")},
+			want: []Mechanism{ptrMech(QTilde, "example.com", false), mech(QMinus, "all")},
 		},
 		{
 			name: "ptr containing macro then -all",
 			spf:  "v=spf1 ptr:%{d} -all",
-			want: []Mechanism{ptrMech(QPlus, "%{d}"), mech(QMinus, "all")},
+			want: []Mechanism{ptrMech(QPlus, "%{d}", true), mech(QMinus, "all")},
 		},
 		{
 			name:    "ptr bad domain",
