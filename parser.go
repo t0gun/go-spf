@@ -61,7 +61,8 @@ func Parse(rawTXT string) (*Record, error) {
 
 	// ordered list of mechanism parsers
 	mechParsers := []func(Qualifier, string) (*Mechanism, error){
-		parseAll, parseIP4, parseIP6, parseA, parseMX, parsePTR,
+		parseAll, parseIP4, parseIP6,
+		parseA, parseMX, parsePTR, parseExists,
 	}
 	record := &Record{}
 	for _, tok := range tokens {
@@ -74,7 +75,7 @@ func Parse(rawTXT string) (*Record, error) {
 				break // found a match
 			}
 		}
-		if perr != nil {
+		if perr != nil || mech == nil {
 			return nil, fmt.Errorf("permerror: %v", perr)
 		}
 		record.Mechs = append(record.Mechs, *mech)
@@ -359,6 +360,7 @@ func parseMX(q Qualifier, rest string) (*Mechanism, error) {
 //
 // The RFC allows <domain-spec> to contain macros.  We store the raw text
 // in Mechanism.Domain; macro expansion happens during evaluation.
+// ptr is strongly discouraged in spf records and may course unnecessary lookups
 func parsePTR(q Qualifier, rest string) (*Mechanism, error) {
 	if !strings.HasPrefix(rest, "ptr") {
 		return nil, fmt.Errorf(" no match")
