@@ -79,8 +79,9 @@ func Parse(rawTXT string) (*Record, error) {
 	}
 	record := &Record{}
 	for _, tok := range tokens {
-		q, rest := stripQualifier(tok)
 
+		// mechanisms are discovered from this point
+		q, rest := stripQualifier(tok)
 		var mech *Mechanism
 		var perr error
 		for _, pf := range mechParsers {
@@ -420,6 +421,13 @@ func parseExists(q Qualifier, rest string) (*Mechanism, error) {
 	}, nil
 }
 
+// parseInclude parses the "include" mechanism (RFC 7208 §5.1).
+// It looks for the literal prefix "include:" (case-insensitive), then
+// captures the remainder as the domain-spec. If the spec is empty,
+// it returns an error. Macro syntax (“%{…}”) is detected but not
+// validated here; actual DNS lookups and macro expansion happen later.
+// On success, it returns a Mechanism with Kind="include", Domain set to
+// the raw spec, Macro=true if any '%' appears, and the given qualifier.
 func parseInclude(q Qualifier, rest string) (*Mechanism, error) {
 	const prefix = "include:"
 	if !strings.HasPrefix(rest, prefix) {
@@ -491,4 +499,21 @@ func ValidateDomain(raw string) (string, error) {
 	}
 
 	return ascii, nil
+}
+
+func parserModifier(tok string) (*Modifier, error) {
+	var name, value string
+	var ok bool
+	if name, value, ok = strings.Cut(tok, "="); ok {
+		name, value = strings.ToLower(name), strings.ToLower(value)
+		name, value = strings.TrimSpace(name), strings.TrimSpace(value)
+	}
+	if !ok {
+		return nil, fmt.Errorf("not a modifier")
+	}
+
+	if value == "" {
+		return nil, fmt.Errorf(" modifier missing value")
+	}
+	return &Modifier{Name: name, Value: value}, nil
 }
