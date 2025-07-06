@@ -109,6 +109,10 @@ func CheckHost(ip net.IP, domain, sender string) (CheckHostResult, error) {
 // placeholder for the logic described in RFC 7208 section 4.6 and currently
 // returns Neutral for all inputs.
 func (c *Checker) evaluate(ctx context.Context, ip net.IP, domain, spf, localPart string) (CheckHostResult, error) {
+	//record, err := parser.Parse(spf)
+	//if err != nil {
+	//	return CheckHostResult{Code: PermError, Cause: errors.New("unable to parse possible syntax error")}, err
+	//}
 
 	// If no mechanism matches, RFC 7208 dictates a "neutral" result.
 	return CheckHostResult{Code: Neutral, Cause: errors.New("policy exists but no assertion")}, nil

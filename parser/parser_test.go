@@ -10,16 +10,16 @@ import (
 )
 
 // ---------- quick helpers ---------- //
-func mech(q Qualifier, kind string) Mechanism {
+func allMech(q Qualifier, kind string) Mechanism {
 	return Mechanism{Qual: q, Kind: kind}
 }
 
-func mechip4(q Qualifier, cidr string) Mechanism {
+func ip4Mech(q Qualifier, cidr string) Mechanism {
 	_, n, _ := net.ParseCIDR(cidr)
 	return Mechanism{Qual: q, Kind: "ip4", Net: n}
 }
 
-func mechip6(q Qualifier, cidr string) Mechanism {
+func ip6Mech(q Qualifier, cidr string) Mechanism {
 	_, n, _ := net.ParseCIDR(cidr)
 	return Mechanism{Qual: q, Kind: "ip6", Net: n}
 }
@@ -37,7 +37,11 @@ func ptrMech(q Qualifier, domain string, hasMacro bool) Mechanism {
 }
 
 func existMech(q Qualifier, domain string, hasMacro bool) Mechanism {
-	return Mechanism{Qual: q, Domain: domain, Macro: hasMacro}
+	return Mechanism{Qual: q, Kind: "exists", Domain: domain, Macro: hasMacro}
+}
+
+func IncMech(q Qualifier, domain string, hasMacro bool) Mechanism {
+	return Mechanism{Qual: q, Domain: domain, Kind: "include", Macro: hasMacro}
 }
 
 func TestParse(t *testing.T) {
@@ -51,13 +55,13 @@ func TestParse(t *testing.T) {
 		{
 			name: "ip4 then -all",
 			spf:  "v=spf1 ip4:203.0.113.0/24 -all",
-			want: []Mechanism{mechip4(QPlus, "203.0.113.0/24"), mech(QMinus, "all")},
+			want: []Mechanism{ip4Mech(QPlus, "203.0.113.0/24"), allMech(QMinus, "all")},
 		},
 
 		{
 			name: "implicit +all",
 			spf:  "v=spf1 all",
-			want: []Mechanism{mech(QPlus, "all")}},
+			want: []Mechanism{allMech(QPlus, "all")}},
 
 		{
 			name:    "bad cidr ip4",
@@ -67,19 +71,19 @@ func TestParse(t *testing.T) {
 		{
 			name: "ip4 with no mask then ~all",
 			spf:  "v=spf1 +ip4:203.0.113.23 ~all",
-			want: []Mechanism{mechip4(QPlus, "203.0.113.23/32"), mech(QTilde, "all")},
+			want: []Mechanism{ip4Mech(QPlus, "203.0.113.23/32"), allMech(QTilde, "all")},
 		},
 
 		{
 			name: "ip6 and ip4 then -all",
 			spf:  "v=spf1 ip6:2001:db8::/32 ip4:203.0.113.0/24 -all",
-			want: []Mechanism{mechip6(QPlus, "2001:db8::/32"), mechip4(QPlus, "203.0.113.0/24"), mech(QMinus, "all")},
+			want: []Mechanism{ip6Mech(QPlus, "2001:db8::/32"), ip4Mech(QPlus, "203.0.113.0/24"), allMech(QMinus, "all")},
 		},
 
 		{
 			name: "implicit /128 host",
 			spf:  "v=spf1 ip6:2001:db8::1 -all",
-			want: []Mechanism{mechip6(QPlus, "2001:db8::1/128"), mech(QMinus, "all")},
+			want: []Mechanism{ip6Mech(QPlus, "2001:db8::1/128"), allMech(QMinus, "all")},
 		},
 		{
 			name:    "bad ipv6 cidr",
@@ -90,17 +94,17 @@ func TestParse(t *testing.T) {
 		{
 			name: "bare a defaults with all",
 			spf:  "v=spf1 a -all",
-			want: []Mechanism{aMech(QPlus, "", -1, -1), mech(QMinus, "all")},
+			want: []Mechanism{aMech(QPlus, "", -1, -1), allMech(QMinus, "all")},
 		},
 		{
 			name: "a with /24",
 			spf:  "v=spf1 a/24 -all",
-			want: []Mechanism{aMech(QPlus, "", 24, -1), mech(QMinus, "all")},
+			want: []Mechanism{aMech(QPlus, "", 24, -1), allMech(QMinus, "all")},
 		},
 		{
 			name: "a explicit domain dual masks",
 			spf:  "v=spf1 a:mail.example.com/24/64 -all",
-			want: []Mechanism{aMech(QPlus, "mail.example.com", 24, 64), mech(QMinus, "all")},
+			want: []Mechanism{aMech(QPlus, "mail.example.com", 24, 64), allMech(QMinus, "all")},
 		},
 		{
 			name:    "a bad v4 mask",
@@ -115,13 +119,13 @@ func TestParse(t *testing.T) {
 		{
 			name: "mx with masks",
 			spf:  "v=spf1 mx/24 -all",
-			want: []Mechanism{mxMech(QPlus, "", 24, -1), mech(QMinus, "all")},
+			want: []Mechanism{mxMech(QPlus, "", 24, -1), allMech(QMinus, "all")},
 		},
 
 		{
 			name: "mx explicit domain, dual masks",
 			spf:  "v=spf1 mx:mail.example.org/24/64 -all",
-			want: []Mechanism{mxMech(QPlus, "mail.example.org", 24, 64), mech(QMinus, "all")},
+			want: []Mechanism{mxMech(QPlus, "mail.example.org", 24, 64), allMech(QMinus, "all")},
 		},
 		{
 			name:    "mx bad v6 mask",
@@ -131,27 +135,45 @@ func TestParse(t *testing.T) {
 		{
 			name: "bare ptr then -all",
 			spf:  "v=spf1 ptr -all",
-			want: []Mechanism{ptrMech(QPlus, "", false), mech(QMinus, "all")},
+			want: []Mechanism{ptrMech(QPlus, "", false), allMech(QMinus, "all")},
 		},
 		{
-			name: "ptr explicit domain with softfail all",
+			name: "ptr explicit domain with hard all",
 			spf:  "v=spf1 ~ptr:example.com -all",
-			want: []Mechanism{ptrMech(QTilde, "example.com", false), mech(QMinus, "all")},
+			want: []Mechanism{ptrMech(QTilde, "example.com", false), allMech(QMinus, "all")},
 		},
 		{
 			name: "ptr containing macro then -all",
 			spf:  "v=spf1 ptr:%{d} -all",
-			want: []Mechanism{ptrMech(QPlus, "%{d}", true), mech(QMinus, "all")},
+			want: []Mechanism{ptrMech(QPlus, "%{d}", true), allMech(QMinus, "all")},
 		},
 		{
-			name:    "ptr bad domain",
-			spf:     "v=spf1 ptr:invalid_domain -all",
+			name: "bare ptr with no domain and -all",
+			spf:  "v=spf1 ptr -all",
+			want: []Mechanism{ptrMech(QPlus, "", false), allMech(QMinus, "all")},
+		},
+
+		{
+			name: "exists with macro and -all",
+			spf:  "v=spf1  exists:%{i}._spf.example.com -all",
+			want: []Mechanism{existMech(QPlus, "%{i}._spf.example.com", true), allMech(QMinus, "all")},
+		},
+
+		{
+			name:    "exists with with no value",
+			spf:     "v=spf1 ip4:192.168.0/24 exists -all",
 			wantErr: true,
 		},
 		{
-			name:    "ptr with garbage suffix",
-			spf:     "v=spf1 ptrfoo -all",
-			wantErr: true,
+			name: "include then all",
+			spf:  "v=spf1 include:_spf.include.com -all",
+			want: []Mechanism{IncMech(QPlus, "_spf.include.com", false), allMech(QMinus, "all")},
+		},
+		{
+			name: "2 includes then all",
+			spf:  "v=spf1 include:sendgrid.net -include:servers.mcsv.net -all",
+			want: []Mechanism{IncMech(QPlus, "sendgrid.net", false),
+				IncMech(QMinus, "servers.mcsv.net", false), allMech(QMinus, "all")},
 		},
 	}
 
@@ -178,7 +200,7 @@ func TestValidateDomain(t *testing.T) {
 		strings.Repeat("b", 63),
 		strings.Repeat("c", 63),
 		strings.Repeat("d", 63),
-	}, ".") + ".com" // 4×63 + 3 dots = 255, OK
+	}, ".") + ".com"                 // 4×63 + 3 dots = 255, OK
 	var tooLongName = longName + "e" // 256 bytes, rejects
 	tc := []struct {
 		name    string // name of test

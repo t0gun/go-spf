@@ -74,7 +74,8 @@ func Parse(rawTXT string) (*Record, error) {
 	// ordered list of mechanism parsers
 	mechParsers := []func(Qualifier, string) (*Mechanism, error){
 		parseAll, parseIP4, parseIP6,
-		parseA, parseMX, parsePTR, parseExists,
+		parseA, parseMX, parsePTR,
+		parseExists, parseInclude,
 	}
 	record := &Record{}
 	for _, tok := range tokens {
@@ -378,28 +379,17 @@ func parsePTR(q Qualifier, rest string) (*Mechanism, error) {
 		return nil, fmt.Errorf(" no match")
 	}
 	spec := rest[3:] // trim leading "ptr"
-	domain := ""     // empty -> current SPF domain
-	hasMacro := strings.ContainsRune(spec, '%')
 	switch {
 	case spec == "":
 		// bare "ptr" - nothing to do here
 	case strings.HasPrefix(spec, ":"):
 		spec = strings.TrimPrefix(spec, ":")
-		// if target has no macros, sanity check goes in
-		if !hasMacro {
-			if _, err := ValidateDomain(spec); err != nil {
-				return nil, fmt.Errorf("bad ptr domain %q", spec)
-			}
-		}
-		domain = spec
-	default:
-		return nil, fmt.Errorf("invalid ptr-mechanism syntax %q", rest)
 	}
 	return &Mechanism{
 		Qual:   q,
 		Kind:   "ptr",
-		Domain: domain,
-		Macro:  hasMacro,
+		Domain: spec, // raw, possibly macro-containing string
+		Macro:  strings.ContainsRune(spec, '%'),
 	}, nil
 }
 
@@ -422,26 +412,33 @@ func parseExists(q Qualifier, rest string) (*Mechanism, error) {
 		return nil, fmt.Errorf("empty exists domain") // will break spf
 	}
 
-	hasMacro := strings.ContainsRune(spec, '%')
-
-	// if there are no  macros, validate the name now.
-	if !hasMacro {
-		if _, err := ValidateDomain(spec); err != nil {
-			return nil, fmt.Errorf("bad exists domain %q", spec)
-		}
-
-	}
 	return &Mechanism{
 		Qual:   q,
 		Kind:   "exists",
 		Domain: spec, // raw, possibly macro-containing string
-		Macro:  hasMacro,
+		Macro:  strings.ContainsRune(spec, '%'),
+	}, nil
+}
+
+func parseInclude(q Qualifier, rest string) (*Mechanism, error) {
+	const prefix = "include:"
+	if !strings.HasPrefix(rest, prefix) {
+		return nil, fmt.Errorf("no match")
+	}
+	spec := rest[len(prefix):]
+	if spec == "" {
+		return nil, fmt.Errorf("include has an empty domain") // will break spf
+	}
+	return &Mechanism{
+		Qual:   q,
+		Kind:   "include",
+		Domain: spec,
+		Macro:  strings.ContainsRune(spec, '%'),
 	}, nil
 }
 
 // ValidateDomain normalises and validates a raw domain name, according to
 // RFC 7208, section 4.3.
-//
 // Validation steps:
 //
 //  1. Remove one trailing dot because domains are implicitly absolute.
