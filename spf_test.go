@@ -3,6 +3,7 @@ package spf
 import (
 	"context"
 	"errors"
+	"github.com/mailspire/spf/parser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net"
@@ -35,7 +36,7 @@ func TestValidateDomain(t *testing.T) {
 		strings.Repeat("b", 63),
 		strings.Repeat("c", 63),
 		strings.Repeat("d", 63),
-	}, ".") + ".com" // 4×63 + 3 dots = 255, OK
+	}, ".") + ".com"                 // 4×63 + 3 dots = 255, OK
 	var tooLongName = longName + "e" // 256 bytes, rejects
 	tc := []struct {
 		name    string // name of test
@@ -75,7 +76,7 @@ func TestValidateDomain(t *testing.T) {
 
 	for _, c := range tc {
 		t.Run(c.name, func(t *testing.T) {
-			domain, err := ValidateDomain(c.raw)
+			domain, err := parser.ValidateDomain(c.raw)
 			if c.wantErr {
 				require.ErrorIs(t, err, c.Err)
 				return
@@ -102,7 +103,6 @@ func TestLocalPart(t *testing.T) {
 	}
 
 }
-
 
 func TestChecker_CheckHost(t *testing.T) {
 	ip := net.ParseIP("127.0.0.1")
@@ -185,4 +185,3 @@ func TestChecker_CheckHost(t *testing.T) {
 		})
 	}
 }
-

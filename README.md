@@ -3,6 +3,7 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/mailspire/spf.svg)](https://pkg.go.dev/github.com/mailspire/spf)
 
 RFC 7208 compliant Go library for parsing and evaluating SPF records.
+> Requires go 1.23.x or later
 
 > **Warning**
 > This project is an early proof of concept. The evaluation logic is

@@ -1,4 +1,4 @@
-package spf
+package parser
 
 import (
 	"net"
@@ -35,6 +35,10 @@ func ptrMech(q Qualifier, domain string, hasMacro bool) Mechanism {
 	return Mechanism{Qual: q, Kind: "ptr", Domain: domain, Macro: hasMacro}
 }
 
+func existMech(q Qualifier, domain string, hasMacro bool) Mechanism {
+	return Mechanism{Qual: q, Domain: domain, Macro: hasMacro}
+}
+
 func TestParse(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -42,6 +46,7 @@ func TestParse(t *testing.T) {
 		want    []Mechanism
 		wantErr bool
 	}{
+		// Ipv4 mechanism tests
 		{
 			name: "ip4 then -all",
 			spf:  "v=spf1 ip4:203.0.113.0/24 -all",
