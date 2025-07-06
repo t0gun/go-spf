@@ -175,6 +175,16 @@ func TestParse(t *testing.T) {
 			want: []Mechanism{IncMech(QPlus, "sendgrid.net", false),
 				IncMech(QMinus, "servers.mcsv.net", false), allMech(QMinus, "all")},
 		},
+		{
+			name: "spf with include and redirect modifier",
+			spf:  "v=spf1 include:_spf.inc.com -all redirect =otherdomain.com",
+			want: []Mechanism{},
+		},
+		{
+			name: "spf with ip4 and exp modifier",
+			spf:  "v=spf1 ip4:192.0.2.0/24 -all exp=explain._spf.example.com",
+			want: []Mechanism{},
+		},
 	}
 
 	for _, tc := range cases {
