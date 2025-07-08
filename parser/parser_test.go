@@ -210,7 +210,7 @@ func TestValidateDomain(t *testing.T) {
 		strings.Repeat("b", 63),
 		strings.Repeat("c", 63),
 		strings.Repeat("d", 63),
-	}, ".") + ".com"                 // 4×63 + 3 dots = 255, OK
+	}, ".") + ".com" // 4×63 + 3 dots = 255, OK
 	var tooLongName = longName + "e" // 256 bytes, rejects
 	tc := []struct {
 		name    string // name of test

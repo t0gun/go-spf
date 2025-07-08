@@ -28,6 +28,7 @@ const (
 type Modifier struct {
 	Name  string // "redirect" / "exp" / anything-else
 	Value string // raw RHS (may contain macros)
+	Macro bool   // used by redirect rfc 7208 section 6.1
 }
 
 // Mechanism describes one mechanism term in an SPF record.  The fields are
@@ -79,6 +80,31 @@ func Parse(rawTXT string) (*Record, error) {
 	}
 	record := &Record{}
 	for _, tok := range tokens {
+		// parse modifier first if not  mod, then it's a mechanism
+		// rfc section 6.1 says the two mods... redirect and exp must not appear in a record more than once
+		// if they do we would send error to dispatcher to call a perm error
+		// unrecognised modifier must be ignored,here we store them as unknown
+		modifier, modErr := parserModifier(tok)
+		if modErr == nil {
+			switch modifier.Name {
+			case "redirect":
+				if record.Redirect != nil {
+					return nil, fmt.Errorf("duplicate redirect")
+				}
+				record.Redirect = modifier
+
+			case "exp":
+				if record.Exp != nil {
+					return nil, fmt.Errorf("duplicate exp")
+				}
+
+				record.Exp = modifier
+			default:
+				record.Unknown = append(record.Unknown, *modifier)
+
+			}
+			continue
+		}
 
 		// mechanisms are discovered from this point
 		q, rest := stripQualifier(tok)
@@ -337,7 +363,7 @@ func parseMX(q Qualifier, rest string) (*Mechanism, error) {
 		if err != nil {
 			return nil, err
 		}
-	case strings.HasPrefix(spec, ""):
+	case strings.HasPrefix(spec, ":"):
 		// ":domain"["/"...]
 		afterColon := strings.TrimPrefix(spec, ":")
 		domainPart, maskPart, _ := strings.Cut(afterColon, "/")
