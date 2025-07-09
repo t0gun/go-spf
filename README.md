@@ -38,8 +38,12 @@ func main() {
 ```
 
 ### Parsing a record
+The parser lives in its own subpackage and can be used directly if you only
+need to read an SPF record.
 ```go
-rec, err := spf.Parse("v=spf1 ip4:203.0.113.0/24 -all")
+import "github.com/mailspire/spf/parser"
+
+rec, err := parser.Parse("v=spf1 ip4:203.0.113.0/24 -all")
 if err != nil {
     // handle parse error
 }
