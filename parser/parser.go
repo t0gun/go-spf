@@ -62,14 +62,16 @@ var (
 	ErrIDNAConversion = errors.New("IDNA ToASCII failed")
 )
 
+var ErrNotModifier = errors.New("-not-modifier")
+
 /* ========= public parser entry-point ========= */
 // Parse checks the record syntax defined in RFC 7208 section 4.6 and returns a structured representation.
 // The function performs no DNS lookups or macro expansion; evaluation according to section 5 is handled elsewhere.
 
 func Parse(rawTXT string) (*Record, error) {
-	tokens, err := tokenizer(rawTXT)
-	if err != nil {
-		return nil, err
+	tokens, tokErr := tokenizer(rawTXT)
+	if tokErr != nil {
+		return nil, tokErr
 	}
 
 	// ordered list of mechanism parsers
@@ -80,30 +82,48 @@ func Parse(rawTXT string) (*Record, error) {
 	}
 	record := &Record{}
 	for _, tok := range tokens {
-		// parse modifier first if not  mod, then it's a mechanism
-		// rfc section 6.1 says the two mods... redirect and exp must not appear in a record more than once
-		// if they do we would send error to dispatcher to call a perm error
-		// unrecognised modifier must be ignored,here we store them as unknown
-		modifier, modErr := parserModifier(tok)
+		// parse mod first if not  mod, then it's a mechanism
+		// rfc  7208 section 6.1 says the two mods... redirect and exp must not appear in a record more than once
+		// if they do we would send this to dispatcher to call a perm error
+		// unrecognised mod must be ignored,here we store them as unknown
+		mod, modErr := parserModifier(tok)
 		if modErr == nil {
-			switch modifier.Name {
+			switch mod.Name {
 			case "redirect":
 				if record.Redirect != nil {
 					return nil, fmt.Errorf("duplicate redirect")
 				}
-				record.Redirect = modifier
+				if !strings.ContainsRune(mod.Value, '%') {
+					if _, e := ValidateDomain(mod.Value); e != nil {
+						return nil, e
+					}
+				}
+				record.Redirect = mod
+				mod.Macro = strings.ContainsRune(mod.Value, '%')
 
 			case "exp":
 				if record.Exp != nil {
 					return nil, fmt.Errorf("duplicate exp")
 				}
+				if !strings.ContainsRune(mod.Value, '%') {
+					if _, e := ValidateDomain(mod.Value); e != nil {
+						return nil, e
+					}
+				}
+				record.Exp = mod
+				mod.Macro = strings.ContainsRune(mod.Value, '%')
 
-				record.Exp = modifier
 			default:
-				record.Unknown = append(record.Unknown, *modifier)
+				record.Unknown = append(record.Unknown, *mod)
+				mod.Macro = strings.ContainsRune(mod.Value, '%')
 
 			}
-			continue
+			continue // done with this token skip to next loop
+		}
+
+		// -------- bad-modifier branch --------
+		if !errors.Is(modErr, ErrNotModifier) {
+			return nil, modErr
 		}
 
 		// mechanisms are discovered from this point
@@ -527,6 +547,23 @@ func ValidateDomain(raw string) (string, error) {
 	return ascii, nil
 }
 
+// parserModifier splits one SPF term of the form “name=value” into a *Modifier.
+// It performs *only* the neutral syntax work mandated by RFC 7208 section 6:
+//
+//   - returns (nil, ErrNotModifier) when the token contains no ‘=’ – letting the
+//     caller fall through to mechanism parsing.
+//
+//   - trims leading/trailing whitespace, lower-cases both name and value,
+//     and rejects an empty RHS (“modifier missing value”) with a regular error
+//     that callers SHOULD treat as a permerror.
+//
+//   - does **not** validate the value beyond being non-empty – redirect/exp
+//
+//   - sets m.Macro to true if the value contains ‘%’, so evaluators know whether
+//     macro expansion is required later.
+//
+// The helper never inspects the SPF record context, making it reusable for
+// unknown modifiers that RFC 7208 says must be ignored but preserved.
 func parserModifier(tok string) (*Modifier, error) {
 	var name, value string
 	var ok bool
@@ -535,11 +572,11 @@ func parserModifier(tok string) (*Modifier, error) {
 		name, value = strings.TrimSpace(name), strings.TrimSpace(value)
 	}
 	if !ok {
-		return nil, fmt.Errorf("not a modifier")
+		return nil, ErrNotModifier
 	}
 
 	if value == "" {
 		return nil, fmt.Errorf(" modifier missing value")
 	}
-	return &Modifier{Name: name, Value: value}, nil
+	return &Modifier{Name: name, Value: value, Macro: false}, nil
 }
