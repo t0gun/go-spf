@@ -109,13 +109,40 @@ func CheckHost(ip net.IP, domain, sender string) (CheckHostResult, error) {
 // placeholder for the logic described in RFC 7208 section 4.6 and currently
 // returns Neutral for all inputs.
 func (c *Checker) evaluate(ctx context.Context, ip net.IP, domain, spf, localPart string) (CheckHostResult, error) {
-	//record, err := parser.Parse(spf)
-	//if err != nil {
-	//	return CheckHostResult{Code: PermError, Cause: errors.New("unable to parse possible syntax error")}, err
-	//}
+	rec, err := parser.Parse(spf)
+	if err != nil {
+		return CheckHostResult{Code: PermError, Cause: err}, nil
+	}
 
-	// If no mechanism matches, RFC 7208 dictates a "neutral" result.
+	// Walk mechanisms in order as required by RFC 7208 section 4.6.  Only
+	// "ip4" (section 5.2) and "all" (section 5.1) are currently supported.
+	for _, mech := range rec.Mechs {
+		switch mech.Kind {
+		case "ip4":
+			if ip4 := ip.To4(); ip4 != nil && mech.Net.Contains(ip4) {
+				return CheckHostResult{Code: resultFromQualifier(mech.Qual)}, nil
+			}
+		case "all":
+			return CheckHostResult{Code: resultFromQualifier(mech.Qual)}, nil
+		}
+	}
+
 	return CheckHostResult{Code: Neutral, Cause: errors.New("policy exists but no assertion")}, nil
+}
+
+func resultFromQualifier(q parser.Qualifier) Result {
+	switch q {
+	case parser.QPlus:
+		return Pass
+	case parser.QMinus:
+		return Fail
+	case parser.QTilde:
+		return SoftFail
+	case parser.QMark:
+		return Neutral
+	default:
+		return Neutral
+	}
 }
 
 // getSenderDomain extracts the domain part of a MAIL FROM address as described

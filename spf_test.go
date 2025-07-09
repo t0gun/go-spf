@@ -125,3 +125,52 @@ func TestChecker_CheckHost(t *testing.T) {
 		})
 	}
 }
+
+func TestChecker_EvaluateAll(t *testing.T) {
+	ip := net.ParseIP("192.0.2.1")
+
+	cases := []struct {
+		name   string
+		record string
+		want   Result
+	}{
+		{"fail all", "v=spf1 -all", Fail},
+		{"softfail all", "v=spf1 ~all", SoftFail},
+		{"pass all", "v=spf1 +all", Pass},
+		{"implicit pass all", "v=spf1 all", Pass},
+		{"neutral all", "v=spf1 ?all", Neutral},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ch := NewChecker(NewCustomDNSResolver(&fakeResolver{txts: []string{tc.record}}))
+			res, err := ch.CheckHost(context.Background(), ip, "example.com", "user@example.com")
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, res.Code)
+		})
+	}
+}
+
+func TestChecker_EvaluateIP4(t *testing.T) {
+	cases := []struct {
+		name   string
+		ip     string
+		record string
+		want   Result
+	}{
+		{"match pass", "203.0.113.5", "v=spf1 ip4:203.0.113.0/24 -all", Pass},
+		{"match fail", "192.0.2.10", "v=spf1 -ip4:192.0.2.0/24 +all", Fail},
+		{"no match -> all", "198.51.100.1", "v=spf1 ip4:203.0.113.0/24 -all", Fail},
+		{"ipv6 skip -> all", "2001:db8::1", "v=spf1 ip4:203.0.113.0/24 ~all", SoftFail},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ip := net.ParseIP(tc.ip)
+			ch := NewChecker(NewCustomDNSResolver(&fakeResolver{txts: []string{tc.record}}))
+			res, err := ch.CheckHost(context.Background(), ip, "example.com", "user@example.com")
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, res.Code)
+		})
+	}
+}
