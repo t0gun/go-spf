@@ -1,4 +1,4 @@
-# spf
+# go-spf
 [![CI](https://github.com/mailspire/spf/actions/workflows/go-test.yaml/badge.svg?branch=main)](https://github.com/mailspire/spf/actions/workflows/go-test.yaml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/mailspire/spf.svg)](https://pkg.go.dev/github.com/mailspire/spf)
 
