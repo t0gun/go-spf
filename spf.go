@@ -8,7 +8,7 @@ package spf
 import (
 	"context"
 	"errors"
-	"github.com/mailspire/spf/parser"
+       "github.com/t0gun/go-spf/parser"
 	"net"
 	"strings"
 )
