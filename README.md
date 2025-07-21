@@ -1,6 +1,6 @@
 # go-spf
-[![CI](https://github.com/mailspire/spf/actions/workflows/go-test.yaml/badge.svg?branch=main)](https://github.com/mailspire/spf/actions/workflows/go-test.yaml)
-[![Go Reference](https://pkg.go.dev/badge/github.com/mailspire/spf.svg)](https://pkg.go.dev/github.com/mailspire/spf)
+[![CI](https://github.com/t0gun/go-spf/actions/workflows/go-test.yaml/badge.svg?branch=main)](https://github.com/t0gun/go-spf/actions/workflows/go-test.yaml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/t0gun/go-spf.svg)](https://pkg.go.dev/github.com/t0gun/go-spf)
 
 RFC 7208 compliant Go library for parsing and evaluating SPF records.
 > Requires go 1.23.x or later
@@ -11,7 +11,7 @@ RFC 7208 compliant Go library for parsing and evaluating SPF records.
 
 ## Installation
 ```shell
-go get github.com/mailspire/spf
+go get github.com/t0gun/go-spf
 ```
 
 ## Usage
@@ -24,7 +24,7 @@ import (
     "fmt"
     "net"
 
-    "github.com/mailspire/spf"
+    "github.com/t0gun/go-spf"
 )
 
 func main() {
@@ -41,7 +41,7 @@ func main() {
 The parser lives in its own subpackage and can be used directly if you only
 need to read an SPF record.
 ```go
-import "github.com/mailspire/spf/parser"
+import "github.com/t0gun/go-spf/parser"
 
 rec, err := parser.Parse("v=spf1 ip4:203.0.113.0/24 -all")
 if err != nil {

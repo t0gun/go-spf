@@ -3,9 +3,9 @@ package spf
 import (
 	"context"
 	"errors"
-	"github.com/mailspire/spf/parser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+       "github.com/t0gun/go-spf/parser"
 	"net"
 	"testing"
 )
