@@ -8,7 +8,7 @@ package spf
 import (
 	"context"
 	"errors"
-       "github.com/t0gun/go-spf/parser"
+	"github.com/t0gun/go-spf/parser"
 	"net"
 	"strings"
 )
@@ -129,10 +129,11 @@ func (c *Checker) evaluate(ctx context.Context, ip net.IP, domain, spf, localPar
 			}
 
 		case "all":
+			// RFC 7208 5.1 - all always matches and everything after must be ignored.
 			return CheckHostResult{Code: resultFromQualifier(mech.Qual)}, nil
 		}
 	}
-
+	// RFC 7208 4.7 - default if no mechanism matched and no redirect is Neutral.
 	return CheckHostResult{Code: Neutral, Cause: errors.New("policy exists but no assertion")}, nil
 }
 
