@@ -113,15 +113,21 @@ func (c *Checker) evaluate(ctx context.Context, ip net.IP, domain, spf, localPar
 	if err != nil {
 		return CheckHostResult{Code: PermError, Cause: err}, nil
 	}
-
 	// Walk mechanisms in order as required by RFC 7208 section 4.6.  Only
-	// "ip4" (section 5.2) and "all" (section 5.1) are currently supported.
 	for _, mech := range rec.Mechs {
 		switch mech.Kind {
 		case "ip4":
 			if ip4 := ip.To4(); ip4 != nil && mech.Net.Contains(ip4) {
 				return CheckHostResult{Code: resultFromQualifier(mech.Qual)}, nil
 			}
+		case "ip6":
+			// Only match pure IPv6. IPv4-mapped addresses fall into ip4 via To4().
+			if ip.To4() == nil {
+				if ip6 := ip.To16(); ip6 != nil && mech.Net.Contains(ip6) {
+					return CheckHostResult{Code: resultFromQualifier(mech.Qual)}, nil
+				}
+			}
+
 		case "all":
 			return CheckHostResult{Code: resultFromQualifier(mech.Qual)}, nil
 		}

@@ -174,3 +174,27 @@ func TestChecker_EvaluateIP4(t *testing.T) {
 		})
 	}
 }
+
+func TestChecker_EvaluateIP6(t *testing.T) {
+	cases := []struct {
+		name   string
+		ip     string
+		record string
+		want   Result
+	}{
+		{"ip6 match pass", "2001:db8:1::5", "v=spf1 ip6:2001:db8:1::/48 -all", Pass},
+		{"ip6 no match -> hardfail", "2001:db8:3::1", "v=spf1 ip6:2001:db8:1::/48 -all", Fail},
+		{"ip6 match fail", "2001:db8:2::10", "v=spf1 -ip6:2001:db8:2::/64 +all", Fail},
+		{"ip6 no match softail", "2001:db8:4::1", "v=spf1 ip6:2001:db8:1::/48 ~all", SoftFail},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ip := net.ParseIP(tc.ip)
+			ch := NewChecker(NewCustomDNSResolver(&fakeResolver{txts: []string{tc.record}}))
+			res, err := ch.CheckHost(context.Background(), ip, "example.com", "user@example.com")
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, res.Code)
+		})
+	}
+}
