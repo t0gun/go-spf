@@ -7,7 +7,6 @@ RFC 7208 compliant Go library for parsing and evaluating SPF records.
 > Requires go 1.23.x or later
 
 > **Warning**
-> This project is an early proof of concept. The evaluation logic is
 > This project is an early proof of concept. The evaluator currently supports `ip4`, `ip6` and `all` mechanisms with
 > left-to-right, first-match semantics. It returns the qualifier of the first matching mechanism and falls back to
 `Neutral` only when nothing matches. Features like `include`, `a`, `mx`, `exists`, `ptr`, `redirect`, DNS lookup limits
