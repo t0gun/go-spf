@@ -5,10 +5,21 @@ import (
 	"errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-       "github.com/t0gun/go-spf/parser"
+	"github.com/t0gun/go-spf/dns"
+	"github.com/t0gun/go-spf/parser"
 	"net"
 	"testing"
 )
+
+// fakeResolver implements TXTResolver for unit tests.
+type fakeResolver struct {
+	txts []string
+	err  error
+}
+
+func (f *fakeResolver) LookupTXT(ctx context.Context, domain string) ([]string, error) {
+	return f.txts, f.err
+}
 
 func TestGetSenderDomain(t *testing.T) {
 	t.Parallel()
@@ -66,21 +77,21 @@ func TestChecker_CheckHost(t *testing.T) {
 			domain:    "example.com",
 			resolver:  &fakeResolver{err: &net.DNSError{Err: "No such host", Name: "example.com", IsNotFound: true}},
 			wantCode:  None,
-			wantErr:   ErrNoDNSrecord,
-			wantCause: ErrNoDNSrecord,
+			wantErr:   dns.ErrNoDNSrecord,
+			wantCause: dns.ErrNoDNSrecord,
 		},
 		{
 			name:      "temporary DNS error -. TempError",
 			domain:    "example.com",
 			resolver:  &fakeResolver{err: &net.DNSError{Err: "timeout", Name: "example.com", IsTemporary: true}},
 			wantCode:  TempError,
-			wantCause: ErrTempfail,
+			wantCause: dns.ErrTempfail,
 		},
 		{
 			name:      "permanent DNS error -> PermError",
 			domain:    "example.com",
 			resolver:  &fakeResolver{err: errors.New("perm failure")},
-			wantCause: ErrPermfail,
+			wantCause: dns.ErrPermfail,
 			wantCode:  PermError,
 		},
 		{
@@ -88,7 +99,7 @@ func TestChecker_CheckHost(t *testing.T) {
 			domain:    "example.com",
 			resolver:  &fakeResolver{txts: []string{"v=spf1 a", "v=spf1 mx"}},
 			wantCode:  PermError,
-			wantCause: ErrMultipleSPF,
+			wantCause: dns.ErrMultipleSPF,
 		},
 		{
 			name:     "no SPF record → zero result",
@@ -107,7 +118,7 @@ func TestChecker_CheckHost(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			ch := NewChecker(NewCustomDNSResolver(tc.resolver))
+			ch := NewChecker(dns.NewCustomDNSResolver(tc.resolver))
 			res, err := ch.CheckHost(context.Background(), ip, tc.domain, "user@example.com")
 			if tc.wantErr != nil {
 				require.ErrorIs(t, err, tc.wantErr)
@@ -126,7 +137,7 @@ func TestChecker_CheckHost(t *testing.T) {
 	}
 }
 
-func TestChecker_EvaluateAll(t *testing.T) {
+func Test_EvaluateAll(t *testing.T) {
 	ip := net.ParseIP("192.0.2.1")
 
 	cases := []struct {
@@ -143,7 +154,7 @@ func TestChecker_EvaluateAll(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ch := NewChecker(NewCustomDNSResolver(&fakeResolver{txts: []string{tc.record}}))
+			ch := NewChecker(dns.NewCustomDNSResolver(&fakeResolver{txts: []string{tc.record}}))
 			res, err := ch.CheckHost(context.Background(), ip, "example.com", "user@example.com")
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, res.Code)
@@ -151,7 +162,7 @@ func TestChecker_EvaluateAll(t *testing.T) {
 	}
 }
 
-func TestChecker_EvaluateIP4(t *testing.T) {
+func Test_EvaluateIP4(t *testing.T) {
 	cases := []struct {
 		name   string
 		ip     string
@@ -167,7 +178,7 @@ func TestChecker_EvaluateIP4(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ip := net.ParseIP(tc.ip)
-			ch := NewChecker(NewCustomDNSResolver(&fakeResolver{txts: []string{tc.record}}))
+			ch := NewChecker(dns.NewCustomDNSResolver(&fakeResolver{txts: []string{tc.record}}))
 			res, err := ch.CheckHost(context.Background(), ip, "example.com", "user@example.com")
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, res.Code)
@@ -175,7 +186,7 @@ func TestChecker_EvaluateIP4(t *testing.T) {
 	}
 }
 
-func TestChecker_EvaluateIP6(t *testing.T) {
+func Test_EvaluateIP6(t *testing.T) {
 	cases := []struct {
 		name   string
 		ip     string
@@ -191,7 +202,7 @@ func TestChecker_EvaluateIP6(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ip := net.ParseIP(tc.ip)
-			ch := NewChecker(NewCustomDNSResolver(&fakeResolver{txts: []string{tc.record}}))
+			ch := NewChecker(dns.NewCustomDNSResolver(&fakeResolver{txts: []string{tc.record}}))
 			res, err := ch.CheckHost(context.Background(), ip, "example.com", "user@example.com")
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, res.Code)

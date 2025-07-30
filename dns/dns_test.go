@@ -1,4 +1,4 @@
-package spf
+package dns
 
 import (
 	"context"
@@ -68,7 +68,7 @@ func TestGetSPFRecord_ErrorsAndFiltering(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 			defer cancel()
 
-			spf, err := getSPFRecord(ctx, "example.com", dr)
+			spf, err := GetSPFRecord(ctx, "example.com", dr)
 			if c.wantErr != nil {
 				require.ErrorIs(t, err, c.wantErr)
 
