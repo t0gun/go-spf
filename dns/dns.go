@@ -1,7 +1,7 @@
 // Package spf implements the Sender Policy Framework checker defined in
 // RFC 7208.  The entry‑point is CheckHost, which follows the decision tree in
 // section 4.6.
-package spf
+package dns
 
 import (
 	"context"
@@ -70,14 +70,14 @@ func (d *DNSResolver) LookupTXT(ctx context.Context, domain string) ([]string, e
 	return d.resolver.LookupTXT(ctx, domain)
 }
 
-// getSPFRecord retrieves the TXT records for domain and selects the single
+// GetSPFRecord retrieves the TXT records for domain and selects the single
 // valid SPF record.  The behaviour mirrors the DNS processing rules from
 // RFC 7208 section 4.5.
 //   - NXDOMAIN → ("", ErrNoDNSrecord)
 //   - SERVFAIL/timeout → ErrTempfail
 //   - any other error → ErrPermfail
 //   - then filters for exactly one "v=spf1" record.
-func getSPFRecord(ctx context.Context, domain string, r TXTResolver) (string, error) {
+func GetSPFRecord(ctx context.Context, domain string, r TXTResolver) (string, error) {
 	txts, err := r.LookupTXT(ctx, domain)
 	if err != nil {
 

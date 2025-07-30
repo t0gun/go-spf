@@ -8,6 +8,7 @@ package spf
 import (
 	"context"
 	"errors"
+	"github.com/t0gun/go-spf/dns"
 	"github.com/t0gun/go-spf/parser"
 	"net"
 	"strings"
@@ -34,14 +35,14 @@ const (
 
 // Checker implements a full RFC 7208–compliant SPF policy evaluator.
 type Checker struct {
-	Resolver       TXTResolver
+	Resolver       dns.TXTResolver
 	MaxLookups     int
 	MaxVoidLookups int
 	// Future fields may allow customization of evaluation behaviour.
 }
 
 // NewChecker returns a Checker that uses the given TXTResolver.
-func NewChecker(r TXTResolver) *Checker {
+func NewChecker(r dns.TXTResolver) *Checker {
 	return &Checker{
 		Resolver:       r,
 		MaxLookups:     MaxDNSLookups,
@@ -58,7 +59,7 @@ type CheckHostResult struct {
 }
 
 // defaultChecker backs the package-level CheckHost convenience function.
-var defaultChecker = NewChecker(NewDNSResolver())
+var defaultChecker = NewChecker(dns.NewDNSResolver())
 
 // CheckHost implements the "check_host" algorithm from RFC 7208 section 4.6.
 // The domain parameter is the name where SPF evaluation begins.  Typically this
@@ -74,18 +75,18 @@ func (c *Checker) CheckHost(ctx context.Context, ip net.IP, domain, sender strin
 	domain = valDomain
 	lp := localPart(sender)
 	// Perform the SPF record lookup per RFC 7208 section 4.4.
-	spfRecord, err := getSPFRecord(ctx, domain, c.Resolver)
+	spfRecord, err := dns.GetSPFRecord(ctx, domain, c.Resolver)
 
 	// Apply the record-selection logic from RFC 7208 section 4.5.
 	switch {
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		// Context errors are outside the scope of RFC 7208.
 		return CheckHostResult{}, err
-	case errors.Is(err, ErrNoDNSrecord):
+	case errors.Is(err, dns.ErrNoDNSrecord):
 		return CheckHostResult{Code: None, Cause: err}, err
-	case errors.Is(err, ErrTempfail):
+	case errors.Is(err, dns.ErrTempfail):
 		return CheckHostResult{Code: TempError, Cause: err}, nil
-	case errors.Is(err, ErrPermfail), errors.Is(err, ErrMultipleSPF):
+	case errors.Is(err, dns.ErrPermfail), errors.Is(err, dns.ErrMultipleSPF):
 		return CheckHostResult{Code: PermError, Cause: err}, nil
 	case err != nil:
 		return CheckHostResult{}, err
