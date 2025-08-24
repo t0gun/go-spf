@@ -39,6 +39,8 @@ type Checker struct {
 	Resolver       *dns.Resolver
 	MaxLookups     int
 	MaxVoidLookups int
+	Lookups        int
+	Voids          int
 	// Future fields may allow customization of evaluation behaviour.
 }
 
@@ -108,9 +110,9 @@ func CheckHost(ip net.IP, domain, sender string) (CheckHostResult, error) {
 	return defaultChecker.CheckHost(context.Background(), ip, domain, sender)
 }
 
-// evaluate walks the SPF decision tree for the given record.  It is a
-// placeholder for the logic described in RFC 7208 section 4.6 and currently
-// returns Neutral for all inputs.
+// evaluate walks the mechanisms in the order they appear in the record.
+// RFC 7208 §4.6 requires sequential evaluation; the first mechanism that
+// matches terminates processing.
 func (c *Checker) evaluate(ctx context.Context, ip net.IP, domain, spf, localPart string) (CheckHostResult, error) {
 	rec, err := parser.Parse(spf)
 	if err != nil {
@@ -130,6 +132,25 @@ func (c *Checker) evaluate(ctx context.Context, ip net.IP, domain, spf, localPar
 					return CheckHostResult{Code: resultFromQualifier(mech.Qual)}, nil
 				}
 			}
+		case "a":
+			// RFC  7208 section 5.3 - "a" mechanisms compare the sender IP against the A/AAAA records of the current pr
+			// explicit domain
+			ok, derr := c.evalA(ctx, mech, ip, domain)
+			if derr != nil {
+				// RFC  7208 section 2.6.4/2.6.5 DNS errors map to Temp/PermError
+				if errors.Is(derr, context.Canceled) || errors.Is(derr, context.DeadlineExceeded) {
+					return CheckHostResult{}, derr
+				}
+				if errors.Is(derr, dns.ErrTempfail) {
+					return CheckHostResult{Code: TempError, Cause: derr}, nil
+				}
+				return CheckHostResult{Code: PermError, Cause: derr}, nil
+			}
+			if ok {
+				// RFC section 4.6, first match wins, qualifier determines result.
+				return CheckHostResult{Code: resultFromQualifier(mech.Qual)}, nil
+			}
+			// No match continue with next mechanism
 
 		case "all":
 			// RFC 7208 5.1 - all always matches and everything after must be ignored.
