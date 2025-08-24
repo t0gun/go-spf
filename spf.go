@@ -8,10 +8,11 @@ package spf
 import (
 	"context"
 	"errors"
-	"github.com/t0gun/go-spf/dns"
-	"github.com/t0gun/go-spf/parser"
 	"net"
 	"strings"
+
+	"github.com/t0gun/go-spf/dns"
+	"github.com/t0gun/go-spf/parser"
 )
 
 // Result is the outcome of an SPF evaluation (RFC 7208 section 2.6).
@@ -52,7 +53,6 @@ func NewChecker(r dns.TXTResolver) *Checker {
 }
 
 // CheckHostResult contains the result code and optional cause returned by
-// CheckHost.
 type CheckHostResult struct {
 	Code  Result
 	Cause error

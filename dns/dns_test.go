@@ -3,11 +3,12 @@ package dns
 import (
 	"context"
 	"errors"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"net"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // fakeResolver implements TXTResolver for unit tests.
@@ -63,7 +64,7 @@ func TestGetSPFRecord_ErrorsAndFiltering(t *testing.T) {
 
 	for _, c := range tc {
 		t.Run(c.name, func(t *testing.T) {
-			dr := NewCustomDNSResolver(c.fakeResolver)
+			dr := NewCustomDNSResolver(c.fakeResolver, nil)
 			// ctx with timeout to exercise ctx flow
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 			defer cancel()
@@ -97,7 +98,7 @@ func TestFilterSPF(t *testing.T) {
 		{"", []string{"v=spf1 -all", "v=spf1 a -all", " v=spf10 a ~all "}, "v=spf1 -all", true},
 	}
 
-	for _, c := range tc { //nolint:paralleltest
+	for _, c := range tc {
 		t.Run(c.name, func(t *testing.T) {
 			got, err := filterSPF(c.txts)
 			if c.wantError {

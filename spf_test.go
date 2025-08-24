@@ -3,12 +3,13 @@ package spf
 import (
 	"context"
 	"errors"
+	"net"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/t0gun/go-spf/dns"
 	"github.com/t0gun/go-spf/parser"
-	"net"
-	"testing"
 )
 
 // fakeResolver implements TXTResolver for unit tests.
@@ -118,7 +119,7 @@ func TestChecker_CheckHost(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			ch := NewChecker(dns.NewCustomDNSResolver(tc.resolver))
+			ch := NewChecker(dns.NewCustomDNSResolver(tc.resolver, nil))
 			res, err := ch.CheckHost(context.Background(), ip, tc.domain, "user@example.com")
 			if tc.wantErr != nil {
 				require.ErrorIs(t, err, tc.wantErr)
@@ -154,7 +155,7 @@ func Test_EvaluateAll(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ch := NewChecker(dns.NewCustomDNSResolver(&fakeResolver{txts: []string{tc.record}}))
+			ch := NewChecker(dns.NewCustomDNSResolver(&fakeResolver{txts: []string{tc.record}}, nil))
 			res, err := ch.CheckHost(context.Background(), ip, "example.com", "user@example.com")
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, res.Code)
@@ -178,7 +179,7 @@ func Test_EvaluateIP4(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ip := net.ParseIP(tc.ip)
-			ch := NewChecker(dns.NewCustomDNSResolver(&fakeResolver{txts: []string{tc.record}}))
+			ch := NewChecker(dns.NewCustomDNSResolver(&fakeResolver{txts: []string{tc.record}}, nil))
 			res, err := ch.CheckHost(context.Background(), ip, "example.com", "user@example.com")
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, res.Code)
@@ -202,7 +203,7 @@ func Test_EvaluateIP6(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ip := net.ParseIP(tc.ip)
-			ch := NewChecker(dns.NewCustomDNSResolver(&fakeResolver{txts: []string{tc.record}}))
+			ch := NewChecker(dns.NewCustomDNSResolver(&fakeResolver{txts: []string{tc.record}}, nil))
 			res, err := ch.CheckHost(context.Background(), ip, "example.com", "user@example.com")
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, res.Code)
