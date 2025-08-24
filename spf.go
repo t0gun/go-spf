@@ -140,6 +140,111 @@ func (c *Checker) evaluate(ctx context.Context, ip net.IP, domain, spf, localPar
 	return CheckHostResult{Code: Neutral, Cause: errors.New("policy exists but no assertion")}, nil
 }
 
+// evalA evaluates the "a" mechanism - RFC 7208 section 5.3
+// Semantics:
+// target domain is either the current SPF domain or the one specified after the a:prefix
+// the sender ip matches it if it falls within any A ipv4 or AAAA ipv6 record for the targe domain after applying CIDR masks
+// each DNS lookup increments the SPF DNS-lookup counter. rfc 7208 section 4.6.4
+// empty DNS responses count towards the "void lookup" limit .RFC 7208 section 4.6.4
+// Errors are mapped to TemprError and PermError as per RFC 7208 section 2.6.4 and 2.6.5
+func (c *Checker) evalA(ctx context.Context, mech parser.Mechanism, connectIP net.IP, currentDomain string) (matched bool, err error) {
+	// section 5.3 - default to the current domain if none is provided
+	target := mech.Domain
+	if target == "" {
+		target = currentDomain
+	}
+	// section 4.6.6 Enforce the global DNS-lookup limit
+	c.Lookups++
+	if c.Lookups > c.MaxLookups {
+		return false, dns.ErrPermfail
+	}
+
+	// perform A/AAAA lookup
+	ips, err := c.Resolver.LookupIP(ctx, target)
+	if err != nil {
+		// section 2.6 , context cancellation is not SPF specific, we propagate
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return false, err
+		}
+		// section 2.6.4 , temporary DNS error => TempError
+		var dErr *net.DNSError
+		if errors.As(err, &dErr) && dErr.Temporary() {
+			return false, dns.ErrTempfail
+		}
+
+		// section 2.6.5, other DNS errors => PermError
+		return false, dns.ErrPermfail
+	}
+
+	// section 4.6.4 - void lookups: domain exists but no usable A/AAAA
+	if len(ips) == 0 {
+		c.Voids++
+		if c.Voids > c.MaxVoidLookups {
+			return false, dns.ErrPermfail
+		}
+		return false, nil
+	}
+
+	// section 5.6IPv4 mask = /32, IPv6 mask = 128 if omitted
+	mask4 := mech.Mask4
+	if mask4 < 0 {
+		mask4 = 32
+	}
+
+	mask6 := mech.Mask6
+	if mask6 < 0 {
+		mask6 = 128
+	}
+
+	// compare sender IP against  each returned address
+	if connectIP.To4() != nil {
+		cip := connectIP.To4()
+		for _, tip := range ips {
+			if t4 := tip.To4(); t4 != nil && prefixEqual(cip, t4, mask4, 32) {
+				return true, nil // section 4.6 rfc 7208, first match wins
+			}
+		}
+		return false, nil
+	}
+
+	// Sender is IPv6
+	cip6 := connectIP.To16()
+	if cip6 == nil {
+		return false, nil
+	}
+	for _, tip := range ips {
+		if tip.To4() == nil && prefixEqual(cip6, tip.To16(), mask6, 128) {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// prefixEqual compares two IPs under a given prefix length.
+// Used to implement CIDR matching for "a" and "mx" mechanisms.
+//
+// Returns true if the first maskLen bits are identical.
+//   - totalBits = 32 for IPv4, 128 for IPv6.
+//   - 5.6 requires bounds-checking on CIDR lengths.
+func prefixEqual(a, b net.IP, maskLen, totalBits int) bool {
+	if a == nil || b == nil || maskLen < 0 || maskLen > totalBits {
+		return false
+	}
+	aa := a.To16()
+	bb := b.To16()
+	if aa == nil || bb == nil {
+		return false
+	}
+	mask := net.CIDRMask(maskLen, totalBits)
+	for i := 0; i < len(mask); i++ {
+		if (aa[i] & mask[i]) != (bb[i] & mask[i]) {
+			return false
+		}
+	}
+	return true
+}
+
 func resultFromQualifier(q parser.Qualifier) Result {
 	switch q {
 	case parser.QPlus:
