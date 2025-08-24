@@ -1,6 +1,4 @@
-// Package spf implements the Sender Policy Framework checker defined in
-// RFC 7208.  The entry‑point is CheckHost, which follows the decision tree in
-// section 4.6.
+// Package dns is responsible for all dns, network IO  calls for the library.
 package dns
 
 import (
@@ -32,16 +30,22 @@ type TXTResolver interface {
 	LookupTXT(ctx context.Context, domain string) ([]string, error)
 }
 
-// DNSResolver uses Go's stdlib to implement TXTResolver.
-type DNSResolver struct {
-	resolver TXTResolver
+// IPResolver abstract DNS lookups for a and AAAA records.
+type IPResolver interface {
+	LookupIPAddr(ctx context.Context, host string) ([]net.IPAddr, error)
 }
 
-// NewDNSResolver returns a DNSResolver that performs TXT lookups using the
+// Resolver uses Go's stdlib to implement txt and ip resolver .
+type Resolver struct {
+	txtr TXTResolver
+	ipr  IPResolver
+}
+
+// NewDNSResolver returns a DNSResolver that performs DNS lookups using the
 // Go standard library.  Lookups respect context timeouts and cancellations so
 // callers can enforce the limits from RFC 7208 section 11.
-func NewDNSResolver() *DNSResolver {
-	r := &net.Resolver{
+func NewDNSResolver() *Resolver {
+	nr := &net.Resolver{
 		StrictErrors: true,
 		PreferGo:     true, // force pure-Go DNS implementation
 		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
@@ -52,22 +56,42 @@ func NewDNSResolver() *DNSResolver {
 			return d.DialContext(ctx, network, address)
 		},
 	}
-
-	return &DNSResolver{resolver: r}
+	//*net.Resolver satisfies BOTH interfaces
+	return &Resolver{txtr: nr, ipr: nr}
 }
 
-// NewCustomDNSResolver builds a DNSResolver that delegates TXT lookups to the
-// provided implementation.  Use this for unit tests or when DNS queries need to
+// NewCustomDNSResolver builds a DNSResolver that delegates DNS lookups to the
+// provided implementation.  this can be used for unit tests  or when DNS queries need to
 // be customised.
-func NewCustomDNSResolver(r TXTResolver) *DNSResolver {
-	return &DNSResolver{resolver: r}
+func NewCustomDNSResolver(txt TXTResolver, ip IPResolver) *Resolver {
+	nr := &net.Resolver{}
+	if txt == nil {
+		txt = nr
+	}
+	if ip == nil {
+		ip = nr
+	}
+
+	return &Resolver{txtr: txt, ipr: ip}
 }
 
 // LookupTXT forwards the request to the underlying resolver.  The provided
 // context controls timeouts so callers remain compliant with the DNS
 // considerations in RFC 7208 section 11.
-func (d *DNSResolver) LookupTXT(ctx context.Context, domain string) ([]string, error) {
-	return d.resolver.LookupTXT(ctx, domain)
+func (d *Resolver) LookupTXT(ctx context.Context, domain string) ([]string, error) {
+	return d.txtr.LookupTXT(ctx, domain)
+}
+
+func (d *Resolver) LookupIP(ctx context.Context, host string) ([]net.IP, error) {
+	addrs, err := d.ipr.LookupIPAddr(ctx, host)
+	if err != nil {
+		return nil, err
+	}
+	ips := make([]net.IP, 0, len(addrs))
+	for _, a := range addrs {
+		ips = append(ips, a.IP)
+	}
+	return ips, nil
 }
 
 // GetSPFRecord retrieves the TXT records for domain and selects the single
