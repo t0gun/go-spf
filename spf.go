@@ -48,6 +48,8 @@ func NewChecker(r *dns.Resolver) *Checker {
 		Resolver:       r,
 		MaxLookups:     MaxDNSLookups,
 		MaxVoidLookups: MaxVoidLookups,
+		Lookups:        0,
+		Voids:          0,
 	}
 
 }
