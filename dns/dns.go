@@ -82,6 +82,8 @@ func (d *Resolver) LookupTXT(ctx context.Context, domain string) ([]string, erro
 	return d.txtr.LookupTXT(ctx, domain)
 }
 
+// LookupIP forwards the IP address lookup to the underlying resolver.The provided
+// context controls timeouts so callers remain compliant with the DNS
 func (d *Resolver) LookupIP(ctx context.Context, host string) ([]net.IP, error) {
 	addrs, err := d.ipr.LookupIPAddr(ctx, host)
 	if err != nil {

@@ -36,14 +36,14 @@ const (
 
 // Checker implements a full RFC 7208–compliant SPF policy evaluator.
 type Checker struct {
-	Resolver       dns.TXTResolver
+	Resolver       *dns.Resolver
 	MaxLookups     int
 	MaxVoidLookups int
 	// Future fields may allow customization of evaluation behaviour.
 }
 
 // NewChecker returns a Checker that uses the given TXTResolver.
-func NewChecker(r dns.TXTResolver) *Checker {
+func NewChecker(r *dns.Resolver) *Checker {
 	return &Checker{
 		Resolver:       r,
 		MaxLookups:     MaxDNSLookups,
