@@ -1,6 +1,5 @@
 # go-spf
 
-[![CI](https://github.com/t0gun/go-spf/actions/workflows/go-test.yaml/badge.svg?branch=main)](https://github.com/t0gun/go-spf/actions/workflows/go-test.yaml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/t0gun/go-spf.svg)](https://pkg.go.dev/github.com/t0gun/go-spf)
 
 RFC 7208 compliant Go library for parsing and evaluating SPF records.
